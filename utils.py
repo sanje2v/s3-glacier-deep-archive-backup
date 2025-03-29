@@ -4,6 +4,7 @@ import argparse
 from glob import iglob
 from contextlib import suppress
 
+
 def remove_file_ignore_errors(filename):
     with suppress(OSError):
         os.remove(filename)
@@ -12,8 +13,11 @@ def listfiles_recursive_iter(folder):
     for file_or_dir in iglob(os.path.join(folder, '**'),
                              recursive=True,
                              include_hidden=True):
-        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir):
+        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't list symbolic link
             yield os.path.abspath(file_or_dir)
+
+def GB_to_bytes(gb):
+    return gb * 1024 * 1024 * 1024
 
 class ValidateFileExists(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None) -> None:

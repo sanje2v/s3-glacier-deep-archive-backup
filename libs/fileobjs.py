@@ -1,4 +1,5 @@
-import os
+import os.path
+from copy import copy
 from Cryptodome.Cipher import ChaCha20
 
 
@@ -6,63 +7,67 @@ class EncryptSplitFileObj:
     def __init__(self,
                  filename: str,
                  encrypt_key: bytes,
-                 split_size: int,
-                 callback: callable):
+                 upload_callback: callable):
         self.filename = filename
         self.encrypt_key = encrypt_key
-        self.split_size = split_size
-        self.callback = callback
+        self.upload_callback = upload_callback
 
         if encrypt_key is not None:
             self.chacha = ChaCha20.new(key=encrypt_key)
-        self.internal_buffer = bytearray()
-        self.idx = 0
+        self.idx = -1
+        self.last_file = None
+
+        self.create_new_part()
+
+    @staticmethod
+    def _create_output_filename(filename: str, idx: int):
+        return os.path.join(os.path.dirname(filename), f"{idx:03}_{os.path.basename(filename)}")
+
+    def _close_last_file(self):
+        if self.last_file is not None:
+            self.last_file.close()
+            self.upload_callback(copy(self.last_file.name))
+
+    def last_part_size(self):
+        match self.last_file:
+            case None:
+                return 0
+            case _:
+                return self.last_file.tell()
+
+    def create_new_part(self):
+        self._close_last_file()
+
+        self.idx += 1
+        self.last_file = open(EncryptSplitFileObj._create_output_filename(self.filename, self.idx),
+                              mode='wb')
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.internal_buffer:
-            self._write_chunk(self.internal_buffer, is_last=True)
+        self._close_last_file()
 
     def tell(self):
         return 0
-    
+
     def readable(self):
         return False
-    
+
     def writable(self):
         return True
-    
+
     def seekable(self):
         return False
-    
-    def _chunks(self):
-        while len(self.internal_buffer) >= self.split_size:
-            chunk = self.internal_buffer[:self.split_size]
-            self.internal_buffer = self.internal_buffer[self.split_size:]
-            yield chunk
 
-    def _write_chunk(self, chunk, is_last=False):
-        chuck_filename = f"{self.filename}.{self.idx}"
-        os.makedirs(os.path.dirname(chuck_filename), exist_ok=True)
-        
-        with open(chuck_filename, mode='wb') as f:
-            f.write(chunk)
-        
-        self.callback(chuck_filename, is_last)
-        self.idx += 1
-    
     def write(self, b, /):
         if self.encrypt_key is not None:
             b = self.chacha.encrypt(b)
-        self.internal_buffer += b
-
-        for chunk in self._chunks():
-            self._write_chunk(chunk)
+        
+        self.last_file.write(b)
 
 
-class JoinUnencryptFileObj:
+class DecryptFileObj:
     def __init__(self, filenames, encrypt, encrypt_key):
         self.filenames = filenames
         self.encrypt = encrypt

@@ -1,5 +1,7 @@
 import os.path
 import logging
+import tarfile
+
 
 LOG_DIR = 'logs'
 LOG_FILENAME = os.path.join(LOG_DIR, 'main.log')
@@ -32,11 +34,14 @@ LOGGING_CONFIG_DICT = {
     }
 }
 
-UPLOAD_RETRY_ON_FAILURE_CONFIG = {
-    'tries': 3,
-    'delay': 5
-}
-
 DEFAULT_NUM_UPLOAD_WORKERS = 4
-DEFAULT_SPLIT_SIZE_KILOBYTES = 1024 * 1024
+DEFAULT_SPLIT_SIZE_GIGABYTES = 1
 DEFAULT_TAR_COMPRESSION_TYPE = 'gz'
+
+ENCRYPT_KEY_LENGTH = 32
+TARFILE_FORMAT = tarfile.PAX_FORMAT
+BUFFER_MEM_SIZE_BYTES = (5 * 1024 * 1024)     # Process this size block at a time
+
+MAX_RETRY_ATTEMPTS = 4
+
+S3_SERVER_URL = 'http://localhost:9000'

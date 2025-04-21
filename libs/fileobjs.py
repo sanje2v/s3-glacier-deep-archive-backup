@@ -1,14 +1,14 @@
 import os.path
-from copy import copy
+from copy import deepcopy
 from Cryptodome.Cipher import ChaCha20
 
 
 class EncryptSplitFileObj:
     def __init__(self,
-                 filename: str,
+                 output_filename_template: str,
                  encrypt_key: bytes,
                  upload_callback: callable):
-        self.filename = filename
+        self.output_filename_template = output_filename_template
         self.encrypt_key = encrypt_key
         self.upload_callback = upload_callback
 
@@ -19,14 +19,14 @@ class EncryptSplitFileObj:
 
         self.create_new_part()
 
-    @staticmethod
-    def _create_output_filename(filename: str, idx: int):
-        return os.path.join(os.path.dirname(filename), f"{idx:03}_{os.path.basename(filename)}")
+    def _create_output_filename(self, idx: int):
+        return os.path.join(os.path.dirname(self.output_filename_template),
+                            f"{idx:03}_{os.path.basename(self.output_filename_template)}")
 
     def _close_last_file(self):
         if self.last_file is not None:
             self.last_file.close()
-            self.upload_callback(copy(self.last_file.name))
+            self.upload_callback(deepcopy(self.last_file.name))
 
     def last_part_size(self):
         match self.last_file:
@@ -39,8 +39,11 @@ class EncryptSplitFileObj:
         self._close_last_file()
 
         self.idx += 1
-        self.last_file = open(EncryptSplitFileObj._create_output_filename(self.filename, self.idx),
+        self.last_file = open(self._create_output_filename(self.idx),
                               mode='wb')
+
+    def get_tar_file(self) -> str:
+        return os.path.basename(self.last_file.name)
 
     def __enter__(self):
         return self

@@ -1,0 +1,6 @@
+[default]
+services=s3
+
+[services s3]
+s3 =
+    endpoint_url=http://s3-glacier-deep-archive-backup-testing-db:9000

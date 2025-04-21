@@ -1,94 +1,95 @@
 import os.path
 import logging
+from copy import deepcopy
 from functools import partial
-from threading import BoundedSemaphore
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor, Future
 
 import boto3
 import boto3.session
 
-from libs import TaskType
+from .common import TaskType, TaskStatus
+from .state_db import StateDB
 
-import config
 
-
-class WorkerPool(ThreadPool):
+class WorkerPool:
     def __init__(self,
-                 state_db,
+                 state_db: StateDB,
                  s3_bucket_name: str,
                  num_workers: int,
-                 num_work_cache: int,
                  task_type: TaskType,
-                 max_retry_attempts: int):
-        super().__init__(processes=num_workers)
-
+                 max_retry_attempts: int,
+                 test_run: bool):
         self.state_db = state_db
         self.num_workers = num_workers
         self.s3_bucket_name = s3_bucket_name
         self.task_type = task_type
         self.max_retry_attempts = max_retry_attempts
+        self.test_run = test_run
 
-        self.tasks = []
-        self.workers_limiting_lock = BoundedSemaphore(num_workers + num_work_cache)  # If all worker threads are busy, we block
+        self.thread_pool = ThreadPoolExecutor(max_workers=num_workers,
+                                              thread_name_prefix='s3-glacier-backup')
+
 
     def __enter__(self):
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-        self.join()     # Wait for everything to be uploaded/downloaded before disposing thread pool
-
+        self.thread_pool.shutdown(wait=True)     # Wait for everything to be uploaded/downloaded before disposing thread pool
 
     def _progress_callback(self, total_bytes, bytes_processed):
         pass
 
-    def _work(self, filename):
+    def _work(self, tar_filename):
+        session = boto3.Session()   # NOTE: Load S3 credentials and configuration from '~/.aws'
+        s3_client = session.client('s3',
+                                    config=boto3.session.Config(max_pool_connections=2,
+                                                                retries={'max_attempts': self.max_retry_attempts,
+                                                                        'mode': 'standard'}))
+        S3_EXTRA_ARGS_DICT = {
+            'ChecksumAlgorithm': 'sha256'
+        } if self.task_type == TaskType.UPLOAD else {
+            'ChecksumMode': 'ENABLED'
+        }
+        
+        if self.task_type == TaskType.UPLOAD:
+            if not self.test_run:
+                S3_EXTRA_ARGS_DICT['StorageClass'] = 'DEEP_ARCHIVE'     # If using Amazon AWS (not local debug endpoint), ask to put it in Glacier Deep Archive
+            
+            s3_client.upload_file(tar_filename,
+                                  self.s3_bucket_name,
+                                  os.path.basename(tar_filename),
+                                  Callback=partial(self._progress_callback, os.path.getsize(tar_filename)),
+                                  ExtraArgs=S3_EXTRA_ARGS_DICT)
+        else:
+            s3_client.download_file(self.s3_bucket_name,
+                                    os.path.basename(tar_filename),
+                                    tar_filename,
+                                    Callback=partial(self._progress_callback),
+                                    ExtraArgs=S3_EXTRA_ARGS_DICT)
+        
+            # Verify checksum of downloaded file
+            # TODO
+
+    def _work_wrapper(self, tar_filename):
         try:
-            logging.info(f"{'Uploading' if self.task_type == TaskType.UPLOAD else 'Downloading'} '{filename}'...")
-            session = boto3.session.Session(aws_access_key_id=config.AWS_ACCESS_KEY_ID,
-                                            aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY)
-            s3_client = session.client('s3',
-                                       config=boto3.session.Config(max_pool_connections=2,
-                                                                   retries={'max_attempts': self.max_retry_attempts,
-                                                                            'mode': 'standard'}))
-            S3_EXTRA_ARGS_DICT = {
-                'ChecksumAlgorithm': 'sha256'
-            } if self.task_type == TaskType.UPLOAD else {
-                'ChecksumMode': 'ENABLED'
-            }
-            
-            if self.task_type == TaskType.UPLOAD:
-                #if endpoint_url is None:
-                #    S3_EXTRA_ARGS_DICT['StorageClass'] = 'DEEP_ARCHIVE'     # If using Amazon AWS (not local debug endpoint), ask to put it in Glacier Deep Archive
-                
-                s3_client.upload_file(filename,
-                                      self.s3_bucket_name,
-                                      os.path.basename(filename),
-                                      Callback=partial(self._progress_callback, os.path.getsize(filename)),
-                                      ExtraArgs=S3_EXTRA_ARGS_DICT)
-                
-                # Upload done so note this in DB
-                #self.state_db.execute(f"INSERT INTO uploads VALUES ({datetime.now()}, {filename})")
-            else:
-                s3_client.download_file(self.s3_bucket_name,
-                                        os.path.basename(filename),
-                                        filename,
-                                        ExtraArgs=S3_EXTRA_ARGS_DICT)
-            
-                # Verify checksum of downloaded file
-                # TODO
+            tar_file = os.path.basename(tar_filename)
 
-            logging.info(f"{'Uploaded' if self.task_type == TaskType.UPLOAD else 'Downloaded'} '{filename}'.")
+            # Work started
+            self.state_db.record_changed_work_state(TaskStatus.STARTED, tar_file=tar_file)
+            logging.info(f"{'Uploading' if self.task_type == TaskType.UPLOAD else 'Downloading'} '{tar_filename}'...")
 
-        finally:
-            self.workers_limiting_lock.release()
+            # Doing work
+            self._work(tar_filename)
 
-    def _task_error_callback(self, filename, exception):
-        logging.error(f"Failed to {self.task_type} '{filename}' with '{exception}'.")
+            # Work succeeded
+            self.state_db.record_changed_work_state(TaskStatus.COMPLETED, tar_file=tar_file)
+            logging.info(f"{'Uploaded' if self.task_type == TaskType.UPLOAD else 'Downloaded'} '{tar_filename}'.")
 
-    def put_on_todo_queue(self, filename):
-        self.workers_limiting_lock.acquire(blocking=True)
-        task = self.apply_async(self._work,
-                                args=(filename,),
-                                error_callback=partial(self._task_error_callback, filename))
-        self.tasks.append(task)
+        except Exception as exception:
+            # Work failed
+            self.state_db.record_changed_work_state(TaskStatus.FAILED, tar_file=tar_file)
+            logging.error(f"Failed to {self.task_type} '{tar_filename}' with '{exception}'.")
+
+
+    def put_on_tasks_queue(self, tar_filename):
+        self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename))

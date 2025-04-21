@@ -2,6 +2,8 @@ import os.path
 import logging
 import tarfile
 
+from consts import TAR_COMPRESSION_TYPES
+
 
 LOG_DIR = 'logs'
 LOG_FILENAME = os.path.join(LOG_DIR, 'main.log')
@@ -35,13 +37,13 @@ LOGGING_CONFIG_DICT = {
 }
 
 DEFAULT_NUM_UPLOAD_WORKERS = 4
-DEFAULT_SPLIT_SIZE_GIGABYTES = 1
+DEFAULT_SPLIT_SIZE_GIGABYTES = 50
 DEFAULT_TAR_COMPRESSION_TYPE = 'gz'
+assert DEFAULT_TAR_COMPRESSION_TYPE in TAR_COMPRESSION_TYPES
 
 ENCRYPT_KEY_LENGTH = 32
 TARFILE_FORMAT = tarfile.PAX_FORMAT
 BUFFER_MEM_SIZE_BYTES = (5 * 1024 * 1024)     # Process this size block at a time
 
 MAX_RETRY_ATTEMPTS = 4
-
-S3_SERVER_URL = 'http://localhost:9000'
+STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M_state.sqlite3'

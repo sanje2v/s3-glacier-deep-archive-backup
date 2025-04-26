@@ -3,11 +3,12 @@ import logging
 import tarfile
 
 from consts import TAR_COMPRESSION_TYPES
+from utils import MB_to_bytes
 
 
 LOG_DIR = 'logs'
 LOG_FILENAME = os.path.join(LOG_DIR, 'main.log')
-MAX_LOG_SIZE_KILOBYTES = 10
+MAX_LOG_SIZE_BYTES = MB_to_bytes(1)
 LOG_NUM_BACKUPS = 8
 LOGGING_LEVEL = logging.INFO
 LOGGING_FORMAT = '%(asctime)s - [%(levelname)s] - %(message)s'
@@ -22,7 +23,7 @@ LOGGING_CONFIG_DICT = {
             'class': 'logging.handlers.RotatingFileHandler',
             'formatter': 'default',
             'filename': LOG_FILENAME,
-            'maxBytes': (MAX_LOG_SIZE_KILOBYTES * 1024),
+            'maxBytes': MAX_LOG_SIZE_BYTES,
             'backupCount': LOG_NUM_BACKUPS
     },
         'console_handler': {
@@ -37,13 +38,15 @@ LOGGING_CONFIG_DICT = {
 }
 
 DEFAULT_NUM_UPLOAD_WORKERS = 4
-DEFAULT_SPLIT_SIZE_GIGABYTES = 50
-DEFAULT_TAR_COMPRESSION_TYPE = 'gz'
-assert DEFAULT_TAR_COMPRESSION_TYPE in TAR_COMPRESSION_TYPES
+DEFAULT_SPLIT_SIZE_GIGABYTES = 50   # NOTE: This value is interpreted as Megabytes in '--test-run'
+DEFAULT_TAR_COMPRESSION_TYPE = None
+assert DEFAULT_TAR_COMPRESSION_TYPE is None or DEFAULT_TAR_COMPRESSION_TYPE in TAR_COMPRESSION_TYPES
 
 ENCRYPT_KEY_LENGTH = 32
+ENCRYPT_NONCE_LENGTH = 12
+ENCRYPTED_FILE_EXTENSION = '.ChaCha20'
 TARFILE_FORMAT = tarfile.PAX_FORMAT
-BUFFER_MEM_SIZE_BYTES = (5 * 1024 * 1024)     # Process this size block at a time
+BUFFER_MEM_SIZE_BYTES = MB_to_bytes(500)     # Process this size block at a time
 
 MAX_RETRY_ATTEMPTS = 4
-STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M_state.sqlite3'
+STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M%S_state.sqlite3'

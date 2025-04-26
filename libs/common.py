@@ -3,10 +3,10 @@ from enum import StrEnum
 
 class TaskType(StrEnum):
     UPLOAD = 'upload'
-    DOWNLOAD = 'download'
+    DECRYPT = 'decrypt'
 
-class TaskStatus(StrEnum):
+class UploadTaskStatus(StrEnum):
     SCHEDULED = 'scheduled'
     STARTED = 'started'
     FAILED = 'failed'
-    COMPLETED = 'completed'
+    UPLOADED = 'uploaded'

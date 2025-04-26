@@ -3,13 +3,14 @@ import json
 import os.path
 import sqlite3
 sqlite3.threadsafety = 3    # CAUTION: Make serialized (i.e. 3) is enabled as we write to db from multiple threads
+from threading import Lock
 from datetime import datetime, timezone
 from typing import List, Tuple, Dict, Any
 
 from consts import MAX_LINUX_PATH_LENGTH, MAX_LINUX_FILENAME_LENGTH
 from utils import *
 
-from .common import TaskStatus
+from .common import UploadTaskStatus
 
 
 class StateDB:
@@ -18,7 +19,8 @@ class StateDB:
 
 
     def __init__(self, db_filename, cmd_args=None):
-        self.state_db = sqlite3.connect(db_filename, check_same_thread=False)
+        self.state_db = sqlite3.connect(db_filename, check_same_thread=False, autocommit=False)
+        self.mutex = Lock()
 
         self._create_tables()
         if cmd_args:
@@ -31,14 +33,14 @@ class StateDB:
         self.state_db.close()
 
     def _execute(self, sql_cmds_to_execute, return_value=False):
-        match return_value:
-            case False:
-                sql_cmds_to_execute = f"BEGIN; {sql_cmds_to_execute} COMMIT;"
-                self.state_db.executescript(sql_cmds_to_execute)
+        with self.mutex:
+            cursor = self.state_db.execute(sql_cmds_to_execute)
+            match return_value:
+                case False:
+                    self.state_db.commit()
 
-            case True:
-                cursor = self.state_db.execute(sql_cmds_to_execute)
-                return cursor.fetchall()
+                case True:
+                    return cursor.fetchall()
 
     def _create_tables(self):
         self._execute(f"CREATE TABLE IF NOT EXISTS {StateDB.WORKS_TABLE_NAME} "\
@@ -48,7 +50,7 @@ class StateDB:
                       f"filename NVARCHAR({MAX_LINUX_PATH_LENGTH}),"\
                       f"modified_time INTEGER,"\
                       f"size INTEGER,"\
-                      f"status VARCHAR({maxStrEnumValue(TaskStatus)}));")
+                      f"status VARCHAR({maxStrEnumValue(UploadTaskStatus)}));")
         self._execute(f"CREATE TABLE IF NOT EXISTS {StateDB.RUNS_TABLE_NAME} "\
                       "(id INTEGER PRIMARY KEY AUTOINCREMENT,"\
                       "datetime DATETIME,"\
@@ -68,7 +70,7 @@ class StateDB:
                                         filename,
                                         prettyDateTimeString(datetime.fromtimestamp(modified_time).astimezone()),
                                         prettyFilesize(size),
-                                        TaskStatus(status)])
+                                        UploadTaskStatus(status)])
         return output_work_records
 
     def get_last_cmd_args(self) -> Dict[str, Any]:
@@ -78,7 +80,7 @@ class StateDB:
             return json.loads(cmd_args_json)
 
         except sqlite3.OperationalError as ex:
-            raise ValueError("Corrupted DB!") from ex
+            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
 
     def get_work_records_with_headers(self, collate: bool) -> Tuple[List[str], List[List[Any]]]:
         try:
@@ -93,9 +95,9 @@ class StateDB:
                 for id, datetime, tar_file, filename, modified_time, size, status in work_records:
                     dirname = os.path.dirname(filename)
                     if dirname not in collated_work_records:
-                        collated_work_records[dirname] = [id, datetime, {tar_file}, dirname, (status == TaskStatus.COMPLETED)]
+                        collated_work_records[dirname] = [id, datetime, {tar_file}, dirname, (status == UploadTaskStatus.UPLOADED)]
                     else:
-                        if status != TaskStatus.COMPLETED or not collated_work_records[dirname][4]:
+                        if status != UploadTaskStatus.UPLOADED or not collated_work_records[dirname][4]:
                             collated_work_records[dirname][4] = False
                         collated_work_records[dirname][2].add(tar_file)
 
@@ -112,25 +114,25 @@ class StateDB:
                                                         return_value=True)))
 
         except sqlite3.OperationalError as ex:
-            raise ValueError("Corrupted DB!") from ex
+            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
 
         return record_headers, work_records
 
     def get_already_uploaded_files(self, tar_files_instead: bool=False) -> List[str]:
         try:
             work_records = self._execute(f"SELECT {'DISTINCT tar_file' if tar_files_instead else 'filename'} "\
-                                         f"FROM {StateDB.WORKS_TABLE_NAME} WHERE status='{TaskStatus.COMPLETED}';",
+                                         f"FROM {StateDB.WORKS_TABLE_NAME} WHERE status='{UploadTaskStatus.UPLOADED}';",
                                          return_value=True)
             work_records = list(map(lambda x: x[0], work_records))
             return work_records
         
         except sqlite3.OperationalError as ex:
-            raise ValueError("Corrupted DB!") from ex
+            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
 
-    def record_changed_work_state(self, task_status: TaskStatus, filename: str=None, tar_file: str=None) -> None:
+    def record_changed_work_state(self, task_status: UploadTaskStatus, filename: str=None, tar_file: str=None) -> None:
         try:
             match task_status:
-                case TaskStatus.SCHEDULED:
+                case UploadTaskStatus.SCHEDULED:
                     assert filename and tar_file
                     stat = os.stat(filename)
                     modified_time, size = int(stat.st_mtime), stat.st_size
@@ -144,7 +146,10 @@ class StateDB:
                                   f"WHERE tar_file='{tar_file}';")
         
         except sqlite3.OperationalError as ex:
-            raise ValueError("Corrupted DB!") from ex
+            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
 
+    def delete_all_work_records(self) -> None:
+        self._execute(f"DELETE FROM {StateDB.WORKS_TABLE_NAME};")
+    
     def delete_work_record(self, tar_file: str) -> None:
         self._execute(f"DELETE FROM {StateDB.WORKS_TABLE_NAME} WHERE tar_file='{tar_file}';")

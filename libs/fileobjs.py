@@ -13,7 +13,7 @@ class EncryptSplitFileObj:
         self.output_filename = output_filename
         self.upload_callback = upload_callback
 
-        self.chacha = ChaCha20.new(key=encrypt_key, nonce=nonce) if encrypt_key else None
+        self.chacha20 = ChaCha20.new(key=encrypt_key, nonce=nonce) if encrypt_key else None
         self.output_file = open(output_filename, mode='wb')
 
     def __enter__(self):
@@ -35,8 +35,8 @@ class EncryptSplitFileObj:
         return False
 
     def write(self, b, /):
-        if self.chacha is not None:
-            b = self.chacha.encrypt(b)
+        if self.chacha20 is not None:
+            b = self.chacha20.encrypt(b)
         
         self.output_file.write(b)
     
@@ -53,7 +53,7 @@ class EncryptSplitFileObj:
 class DecryptFileObj:
     def __init__(self, filename: str, decrypt_key: bytes, nonce: bytes):
         self.file = open(filename, mode='rb')
-        self.chacha = ChaCha20.new(key=decrypt_key, nonce=nonce)
+        self.chacha20 = ChaCha20.new(key=decrypt_key, nonce=nonce)
 
     def __enter__(self):
         return self
@@ -69,5 +69,5 @@ class DecryptFileObj:
                 if not data:
                     break
 
-                data = self.chacha.decrypt(data)
+                data = self.chacha20.decrypt(data)
                 output_file.write(data)

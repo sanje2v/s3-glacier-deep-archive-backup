@@ -87,14 +87,13 @@ def delete(all: bool,
     with StateDB(db_filename) as state_db:
         match all:
             case True:
-                result = input("Are you sure you want to delete all backed up files? (Y/n) ")
+                result = input("Are you sure you want to delete all backed up files "\
+                               "(Bucket itself must be delete using AWS Console)? (Y/n) ")
                 match result:
                     case 'Y':
-                        result = input("Should I delete the specified bucket containing the files, "\
-                                       "which will be faster but all file versioning will be lost too? (Y/n) ")
                         _delete(state_db,
                                 bucket,
-                                (None if result == 'Y' else state_db.get_already_uploaded_files(tar_files_instead=True)))
+                                state_db.get_already_uploaded_files(tar_files_instead=True))
 
                     case _:
                         logging.info("Aborted as 'Y' input was not received!")
@@ -167,22 +166,20 @@ def _backup(db_filename: str,
     logging.info("Done")
 
 
-def _delete(state_db: StateDB, bucket: str, tar_files: Optional[List[str]]):
+def _delete(state_db: StateDB, bucket: str, tar_files: List[str]):
     session = boto3.Session()   # NOTE: Load S3 credentials and configuration from '~/.aws'
     s3_client = session.client('s3')
 
-    if tar_files:
-        for tar_file in tar_files:
-            logging.info(f"Trying to delete '{tar_file}'...")
-            response = s3_client.delete_object(Key=tar_file, Bucket=bucket)['ResponseMetadata']
-            match response['HTTPStatusCode']:
-                case HTTPStatus.OK | HTTPStatus.NO_CONTENT:
-                    state_db.delete_work_record(tar_file)
-                    logging.info("Done")
-                case _:
-                    logging.error(f"Failed to delete file '{tar_file}'! "\
-                                  "Please check that such a file and containing bucket exists.")
-    else:
-        s3_client.delete_bucket(Bucket=bucket)
-        state_db.delete_all_work_records()
-        logging.info("Done")
+    for tar_file in tar_files:
+        logging.info(f"Trying to delete '{tar_file}'...")
+        response = s3_client.delete_object(Key=tar_file, Bucket=bucket)['ResponseMetadata']
+        state_db.delete_work_record(tar_file)
+        match response['HTTPStatusCode']:
+            case HTTPStatus.OK | HTTPStatus.NO_CONTENT:
+                state_db.delete_work_record(tar_file)
+                logging.info(f"'{tar_file}' deleted!")
+            case _:
+                logging.error(f"Failed to delete file '{tar_file}'! "\
+                              "Please check that such a file and containing bucket exists.")
+    
+    logging.info("Done")

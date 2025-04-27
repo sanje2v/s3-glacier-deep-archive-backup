@@ -80,7 +80,7 @@ class StateDB:
             return json.loads(cmd_args_json)
 
         except sqlite3.OperationalError as ex:
-            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
+            raise ValueError("Corrupted DB!") from ex
 
     def get_work_records_with_headers(self, collate: bool) -> Tuple[List[str], List[List[Any]]]:
         try:
@@ -114,7 +114,7 @@ class StateDB:
                                                         return_value=True)))
 
         except sqlite3.OperationalError as ex:
-            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
+            raise ValueError("Corrupted DB!") from ex
 
         return record_headers, work_records
 
@@ -127,7 +127,7 @@ class StateDB:
             return work_records
         
         except sqlite3.OperationalError as ex:
-            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
+            raise ValueError("Corrupted DB!") from ex
 
     def record_changed_work_state(self, task_status: UploadTaskStatus, filename: str=None, tar_file: str=None) -> None:
         try:
@@ -146,7 +146,7 @@ class StateDB:
                                   f"WHERE tar_file='{tar_file}';")
         
         except sqlite3.OperationalError as ex:
-            raise ValueError(f"Corrupted DB! Exception: {ex}") from ex
+            raise ValueError("Corrupted DB!") from ex
 
     def delete_all_work_records(self) -> None:
         self._execute(f"DELETE FROM {StateDB.WORKS_TABLE_NAME};")

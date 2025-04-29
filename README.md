@@ -5,7 +5,7 @@ More info at: https://TODO
 
 
 # Requirements
-1. Python - v3.12.3
+1. Python - *v3.12.3*
 2. All required Python modules are listed under `requirements.txt`.
 
 # Setup

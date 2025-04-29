@@ -2,7 +2,7 @@ import os.path
 import logging
 from copy import deepcopy
 from functools import partial
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 import boto3.session

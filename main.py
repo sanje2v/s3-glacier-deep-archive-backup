@@ -1,4 +1,3 @@
-import os.path
 import argparse
 import logging
 import logging.config

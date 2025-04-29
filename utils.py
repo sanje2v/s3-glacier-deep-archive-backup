@@ -7,7 +7,7 @@ from http import HTTPStatus
 from functools import reduce
 from datetime import datetime
 from contextlib import suppress
-from typing import List
+from typing import Generator, List
 
 import boto3
 import botocore.exceptions
@@ -29,7 +29,7 @@ def remove_file_ignore_errors(filename) -> None:
     with suppress(OSError):
         os.remove(filename)
 
-def list_files_recursive_iter(folder: str, file_extension: str='') -> List[str]:
+def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[str]:
     for file_or_dir in iglob(os.path.join(folder, f'**{file_extension}'),
                              recursive=True,
                              include_hidden=True):  # CAUTION: Don't forget to include hidden files
@@ -55,8 +55,9 @@ def maxStrEnumValue(enum_class_type) -> int:
     return len(reduce(max, iter(enum_class_type)))
 
 def prettyFilesize(value, decimal_places=1) -> str:
-    for unit in ['bytes', 'KB', 'MB', 'GB', 'TB']:
-        if value < 1024.0 or unit == 'TB':
+    UNITS = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB']
+    for unit in UNITS:
+        if value < 1024.0 or unit == UNITS[-1]:
             break
         value /= 1024.0
     return f"{value:.{decimal_places}f} {unit}"
@@ -72,7 +73,7 @@ def checkFilesExistsInS3(bucket: str, tar_files: List[str]) -> List[bool]:
             results.append(True)
 
         except botocore.exceptions.ClientError as ex:
-            if ex.response['Error']['Code'] == '404':
+            if int(ex.response['Error']['Code']) == HTTPStatus.NOT_FOUND:
                 results.append(False)
             else:
                 raise ex
@@ -96,7 +97,7 @@ class ValidateBucketExists(argparse.Action):
             s3_client.head_bucket(Bucket=values)
             
         except botocore.exceptions.ClientError as ex:
-            if ex.response['Error']['Code'] == '404':
+            if int(ex.response['Error']['Code']) == HTTPStatus.NOT_FOUND:
                 raise argparse.ArgumentError(self, f"The bucket with name '{values}' doesn't exist in S3 server!")
             else:
                 raise ex

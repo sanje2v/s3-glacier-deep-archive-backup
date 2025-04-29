@@ -1,7 +1,6 @@
 import os
 import logging
-import tarfile
-from typing import List, Optional
+from typing import List
 from http import HTTPStatus
 from datetime import datetime
 

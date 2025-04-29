@@ -19,7 +19,7 @@ def backup(src_dirs: List[str],
            bucket: str,
            num_upload_workers: int,
            compression: str,
-           encrypt_key: bytes,
+           encrypt: bool,
            autoclean: bool,
            test_run: bool):
     db_filename = datetime.now().strftime(settings.STATE_DB_FILENAME_TEMPLATE)
@@ -65,16 +65,19 @@ def sync(bucket: str, db_filename: str):
 
 def decrypt(decrypt_key: str,
             autoclean: bool,
+            db_filename: str,
             tar_files_folder: str):
     assert not decrypt_key or len(decrypt_key) == settings.ENCRYPT_KEY_LENGTH
 
-    with WorkerPool(num_workers=settings.DEFAULT_NUM_UPLOAD_WORKERS,
-                    task_type=TaskType.DECRYPT,
-                    decrypt_key=str_to_bytes(decrypt_key),
-                    autoclean=autoclean) as decrypt_worker_pool:
-        for encrypted_tar_filename in list_files_recursive_iter(tar_files_folder,
-                                                                file_extension=settings.ENCRYPTED_FILE_EXTENSION):
-            decrypt_worker_pool.put_on_tasks_queue(encrypted_tar_filename)
+    with StateDB(db_filename) as state_db:
+        with WorkerPool(num_workers=settings.DEFAULT_NUM_UPLOAD_WORKERS,
+                        task_type=TaskType.DECRYPT,
+                        state_db=state_db,
+                        decrypt_key=str_to_bytes(decrypt_key),
+                        autoclean=autoclean) as decrypt_worker_pool:
+                for encrypted_tar_filename in list_files_recursive_iter(tar_files_folder,
+                                                                        file_extension=settings.ENCRYPTED_FILE_EXTENSION):
+                    decrypt_worker_pool.put_on_tasks_queue(encrypted_tar_filename)
 
     print("Done")
 
@@ -108,7 +111,7 @@ def _backup(db_filename: str,
             bucket: str,
             num_upload_workers: int,
             compression: str,
-            encrypt_key: str,
+            encrypt: bool,
             autoclean: bool,
             test_run: bool):
     assert not encrypt_key or len(encrypt_key) == settings.ENCRYPT_KEY_LENGTH
@@ -130,13 +133,14 @@ def _backup(db_filename: str,
             if compression and not output_filename_template.lower().endswith(f'.{compression}'):
                 output_filename_template += f'.{compression}'
             
-            if encrypt_key:
+            if encrypt:
                 output_filename_template += settings.ENCRYPTED_FILE_EXTENSION
-                encrypt_key = str_to_bytes(encrypt_key)
+                encrypt_key = state_db.get_encryption_key()
+            else:
+                encrypt_key = None
 
             with SplitTarFiles(output_filename_template,
                                encrypt_key,
-                               (encrypt_key[:settings.ENCRYPT_NONCE_LENGTH] if encrypt_key else None),
                                compression,
                                settings.BUFFER_MEM_SIZE_BYTES,
                                upload_worker_pool.put_on_tasks_queue) as split_tarfiles:

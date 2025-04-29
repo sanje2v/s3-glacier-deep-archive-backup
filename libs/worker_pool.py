@@ -20,7 +20,7 @@ class WorkerPool:
                  num_workers: int,
                  task_type: TaskType,
                  autoclean: bool,
-                 state_db: StateDB=None,
+                 state_db: StateDB,
                  s3_bucket_name: str=None,
                  max_retry_attempts: int=None,
                  decrypt_key: bytes=None,
@@ -70,9 +70,9 @@ class WorkerPool:
                                       ExtraArgs=S3_EXTRA_ARGS_DICT)
 
             case TaskType.DECRYPT:
+                decryption_key = self.state_db.get_encryption_key()
                 with DecryptFileObj(tar_filename,
-                                    self.decrypt_key,
-                                    self.decrypt_key[:settings.ENCRYPT_NONCE_LENGTH]) as decryptor:
+                                    decryption_key) as decryptor:
                     output_filename = tar_filename.removesuffix(settings.ENCRYPTED_FILE_EXTENSION)
                     decryptor.decrypt(output_filename, settings.BUFFER_MEM_SIZE_BYTES)
 

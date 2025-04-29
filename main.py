@@ -33,7 +33,7 @@ if __name__ == '__main__':
     backup_parser.add_argument('--bucket', help="S3 bucket to upload to. Will be created if it doesn't exists.", type=str, action=ValidateBucketExists, required=True)
     backup_parser.add_argument('--num-upload-workers', help="Number of upload workers.", type=int, default=settings.DEFAULT_NUM_UPLOAD_WORKERS)
     backup_parser.add_argument('--compression', help=f"Type of compression ({", ".join(TAR_COMPRESSION_TYPES)}) to use on TAR file. Don't specify an option for no compression.", type=str.lower, choices=TAR_COMPRESSION_TYPES, default=settings.DEFAULT_TAR_COMPRESSION_TYPE)
-    backup_parser.add_argument('--encrypt-key', help=f"Encrypt the TAR file using {settings.ENCRYPT_KEY_LENGTH} characters long key.", type=str, action=ValidateEncryptionKey, default=None)
+    backup_parser.add_argument('--encrypt', help=f"Specify to encrypt the TAR file. Key will be saved in state database. Nonce is TAR filename, repeated to 12 characters.", action='store_true')
     backup_parser.add_argument('--autoclean', help="Removes all generated TAR files after they are uploaded.", action=argparse.BooleanOptionalAction, default=True)
     backup_parser.add_argument('--test-run', help="Enables test run for testing using local Minio S3 test server where Deep Freeze attribute needs to be disabled.", action='store_true')
     backup_parser.add_argument('output_filename_template', help="A template filename with path to save backup to.", type=abspath, action=ValidateFilename)
@@ -46,8 +46,8 @@ if __name__ == '__main__':
     list_parser.add_argument('db_filename', help="Filename of the state DB generated during backup.", type=abspath, action=ValidateFilesExists)
 
     decrypt_parser = subparser.add_parser('decrypt', help="Decrypt all downloaded TARs from specified folder.")
-    decrypt_parser.add_argument('--decrypt-key', help="Decryption key for the TAR files.", type=str, action=ValidateEncryptionKey, required=True)
     decrypt_parser.add_argument('--autoclean', help="Removes all encrypted TAR files after they have been decrypted.", action=argparse.BooleanOptionalAction, default=True)
+    decrypt_parser.add_argument('db_filename', help="Filename of the state DB generated during backup.", type=abspath, action=ValidateFilesExists)
     decrypt_parser.add_argument('tar_files_folder', help="Location containing downloaded TAR files.", type=abspath, action=ValidateFoldersExist)
 
     sync_parser = subparser.add_parser('sync', help="Sync contents of state database with remote S3. Listing contents of remote S3 might incur costs.")

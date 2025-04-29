@@ -1,6 +1,6 @@
 import os.path
 import tarfile
-from typing import Callable
+from typing import Callable, Optional
 
 from .fileobjs import EncryptSplitFileObj
 
@@ -10,14 +10,12 @@ import settings
 class SplitTarFiles:
     def __init__(self,
                  output_filename_template: str,
-                 encrypt_key: bytes,
-                 nonce: bytes,
+                 encrypt_key: Optional[bytes],
                  compression: str,
                  buffer_mem_size: int,
                  upload_callback: Callable):
         self.output_filename_template = output_filename_template
         self.encrypt_key = encrypt_key
-        self.nonce = nonce
         self.compression = compression
         self.buffer_mem_size = buffer_mem_size
         self.upload_callback = upload_callback
@@ -44,7 +42,6 @@ class SplitTarFiles:
                                        f"{self.output_file_idx:03}_{os.path.basename(self.output_filename_template)}")
         self.fileobj = EncryptSplitFileObj(output_filename,
                                            self.encrypt_key,
-                                           self.nonce,
                                            self.upload_callback)
         self.current_tarfile = tarfile.open(fileobj=self.fileobj,
                                             format=settings.TARFILE_FORMAT,

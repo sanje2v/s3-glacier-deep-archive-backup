@@ -1,17 +1,21 @@
+import os.path
 from typing import Optional, Callable
 from Cryptodome.Cipher import ChaCha20
+
+import settings
+from utils import repeat_string_until_length, str_to_bytes
 
 
 class EncryptSplitFileObj:
     def __init__(self,
                  output_filename: str,
                  encrypt_key: Optional[bytes],
-                 nonce: Optional[bytes],
                  upload_callback: Callable):
         self.output_filename = output_filename
         self.upload_callback = upload_callback
 
-        self.chacha20 = ChaCha20.new(key=encrypt_key, nonce=nonce) if encrypt_key else None
+        nonce: str = repeat_string_until_length(os.path.basename(output_filename), settings.ENCRYPTION_NONCE_LENGTH)
+        self.chacha20 = ChaCha20.new(key=encrypt_key, nonce=str_to_bytes(nonce)) if encrypt_key else None
         self.output_file = open(output_filename, mode='wb')
 
     def __enter__(self):
@@ -51,7 +55,8 @@ class EncryptSplitFileObj:
 class DecryptFileObj:
     def __init__(self, filename: str, decrypt_key: bytes, nonce: bytes):
         self.file = open(filename, mode='rb')
-        self.chacha20 = ChaCha20.new(key=decrypt_key, nonce=nonce)
+        nonce: str = repeat_string_until_length(os.path.basename(filename), settings.ENCRYPTION_NONCE_LENGTH)
+        self.chacha20 = ChaCha20.new(key=decrypt_key, nonce=str_to_bytes(nonce))
 
     def __enter__(self):
         return self

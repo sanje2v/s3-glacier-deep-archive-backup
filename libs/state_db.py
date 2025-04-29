@@ -1,6 +1,6 @@
 import os
 import json
-import os.path
+import secrets
 import sqlite3
 sqlite3.threadsafety = 3    # CAUTION: Make serialized (i.e. 3) is enabled as we write to db from multiple threads
 from threading import Lock
@@ -9,6 +9,7 @@ from typing import List, Tuple, Dict, Any
 
 from consts import MAX_LINUX_PATH_LENGTH, MAX_LINUX_FILENAME_LENGTH
 from utils import *
+import settings
 
 from .common import UploadTaskStatus
 
@@ -16,6 +17,7 @@ from .common import UploadTaskStatus
 class StateDB:
     WORKS_TABLE_NAME = 'works'
     RUNS_TABLE_NAME = 'runs'
+    SECRETS_TABLE_NAME = 'secrets'
 
 
     def __init__(self, db_filename, cmd_args=None):
@@ -55,6 +57,8 @@ class StateDB:
                       "(id INTEGER PRIMARY KEY AUTOINCREMENT,"\
                       "datetime DATETIME,"\
                       f"cmd_args_json NVARCHAR({MAX_LINUX_PATH_LENGTH*10}));")
+        self._execute(f"CREATE TABLE IF NOT EXISTS {StateDB.SECRETS_TABLE_NAME} "\
+                      f"(encryption_key VARCHAR({settings.ENCRYPT_KEY_LENGTH}));")
 
     def _record_run(self, cmd_args_dict):
         self._execute(f"INSERT INTO {StateDB.RUNS_TABLE_NAME} "\
@@ -72,12 +76,32 @@ class StateDB:
                                         prettyFilesize(size),
                                         UploadTaskStatus(status)])
         return output_work_records
+    
+    def _set_encryption_key(self, encryption_key: str) -> None:
+        try:
+            self._execute(f"INSERT INTO {StateDB.SECRETS_TABLE_NAME} "\
+                          f"(encryption_key) VALUES ('{encryption_key}');")
+        except sqlite3.OperationalError as ex:
+            raise ValueError("Corrupted DB!") from ex
 
     def get_last_cmd_args(self) -> Dict[str, Any]:
         try:
             cmd_args_json = self._execute(f"SELECT cmd_args_json FROM {StateDB.RUNS_TABLE_NAME} "\
                                           "ORDER BY id DESC LIMIT 1;", return_value=True)[0][0]
             return json.loads(cmd_args_json)
+
+        except sqlite3.OperationalError as ex:
+            raise ValueError("Corrupted DB!") from ex
+        
+    def get_encryption_key(self) -> bytes:
+        try:
+            encryption_key = self._execute(f"SELECT encryption_key FROM {StateDB.SECRETS_TABLE_NAME} "\
+                                           "LIMIT 1;", return_value=True)[0][0]
+            if not encryption_key:
+                encryption_key = secrets.token_urlsafe(settings.ENCRYPT_KEY_LENGTH)
+                self._set_encryption_key(encryption_key)
+            
+            return str_to_bytes(encryption_key)
 
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex

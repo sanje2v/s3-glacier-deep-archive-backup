@@ -42,6 +42,10 @@ def MB_to_bytes(value) -> int:
 def GB_to_bytes(value) -> int:
     return MB_to_bytes(value) * 1024
 
+def repeat_string_until_length(value: str, length: int) -> str:
+    a, b = divmod(length, len(value))
+    return value * a + value[:b]
+
 def isAWSConfigAndCredentialsOK() -> bool:
     return len(boto3.Session().available_profiles) > 0
 

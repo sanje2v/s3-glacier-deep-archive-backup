@@ -20,7 +20,7 @@ Use `python3 main.py --help` to list comands that are avaliable. Command output 
 ## Backing up folders
 To backup your folders, you may use the following command:
 
-`python3 main.py --backup --src-dirs /path/to/your/folder1 /path/to/your/folder2 --bucket=mybucket --encrypt-key=<KEY of 32 chars> --compression=gz /tmp/temp_folder/output.tar`
+`python3 main.py backup --src-dirs /path/to/your/folder1 /path/to/your/folder2 --bucket=mybucket --encrypt-key=<KEY of 32 chars> --compression=gz /tmp/temp_folder/output.tar`
 
 This command will recursively list the files in `/path/to/your/folder1` and `/path/to/your/folder2`, compress them into several tar files using `gzip` compression, encrypts the tar files with `ChaCha20` encryption algorithm using key `mykey` and uploads it to S3 bucket `mybucket` while assigning `Glacier Archive` class. The generated TAR files of this command will be saved in `/tmp/temp_folder/` and subsequently deleted after they are uploaded.
 

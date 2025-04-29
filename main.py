@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=os.path.basename(__file__),
                                      description="Program that automates compression, encryption, spliting and uploading files to backup to AWS Glacier's Deep Archive.")
     subparser = parser.add_subparsers(help="backup or restore", required=True, dest='command')
-    
+
     backup_parser = subparser.add_parser('backup', help="Backup files to AWS S3 Glacier Deep Freeze.")
     backup_parser.add_argument('--src-dirs', help="One or more source directories to backup.", type=abspath, action=ValidateFoldersExist, nargs='+', required=True)
     backup_parser.add_argument('--split-size', help=f"Split size in Gigabytes (Megabytes if '--test-run' specified). Default is {settings.DEFAULT_SPLIT_SIZE_GIGABYTES} GB.", type=int, default=settings.DEFAULT_SPLIT_SIZE_GIGABYTES)

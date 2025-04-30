@@ -44,7 +44,7 @@ class WorkerPool:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.thread_pool.shutdown(wait=True)     # Wait for everything to be uploaded/downloaded before disposing thread pool
 
-    def _progress_callback(self, total_bytes, bytes_processed):
+    def _progress_callback(self, total_bytes: int, bytes_processed: int):
         pass
 
     def _work(self, tar_filename: str):
@@ -80,7 +80,7 @@ class WorkerPool:
             remove_file_ignore_errors(tar_filename)
 
 
-    def _work_wrapper(self, tar_filename):
+    def _work_wrapper(self, tar_filename: str):
         try:
             tar_file = os.path.basename(tar_filename)
 
@@ -104,5 +104,5 @@ class WorkerPool:
             logging.error(f"Failed to {self.task_type} '{tar_filename}' with '{exception}'.")
 
 
-    def put_on_tasks_queue(self, tar_filename):
+    def put_on_tasks_queue(self, tar_filename: str):
         self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename))

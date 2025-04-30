@@ -5,7 +5,7 @@ import sqlite3
 sqlite3.threadsafety = 3    # CAUTION: Make serialized (i.e. 3) is enabled as we write to db from multiple threads
 from threading import Lock
 from datetime import datetime, timezone
-from typing import List, Tuple, Dict, Any
+from typing import Union
 
 from consts import MAX_LINUX_PATH_LENGTH, MAX_LINUX_FILENAME_LENGTH
 from utils import *
@@ -84,7 +84,7 @@ class StateDB:
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
-    def get_last_cmd_args(self) -> Dict[str, Any]:
+    def get_last_cmd_args(self) -> dict[str, Union[str, int]]:
         try:
             cmd_args_json = self._execute(f"SELECT cmd_args_json FROM {StateDB.RUNS_TABLE_NAME} "\
                                           "ORDER BY id DESC LIMIT 1;", return_value=True)[0][0]
@@ -106,7 +106,7 @@ class StateDB:
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
-    def get_work_records_with_headers(self, collate: bool) -> Tuple[List[str], List[List[Any]]]:
+    def get_work_records_with_headers(self, collate: bool) -> tuple[list[str], list[list[Union[str, int, bool]]]]:
         try:
             cmd_to_execute = f"SELECT * FROM {StateDB.WORKS_TABLE_NAME} ORDER BY id ASC, filename ASC;"
             work_records = self._execute(cmd_to_execute, return_value=True)
@@ -142,7 +142,7 @@ class StateDB:
 
         return record_headers, work_records
 
-    def get_already_uploaded_files(self, tar_files_instead: bool=False) -> List[str]:
+    def get_already_uploaded_files(self, tar_files_instead: bool=False) -> list[str]:
         try:
             work_records = self._execute(f"SELECT {'DISTINCT tar_file' if tar_files_instead else 'filename'} "\
                                          f"FROM {StateDB.WORKS_TABLE_NAME} WHERE status='{UploadTaskStatus.UPLOADED}';",

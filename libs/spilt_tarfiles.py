@@ -1,6 +1,6 @@
 import os.path
 import tarfile
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from .fileobjs import EncryptSplitFileObj
 
@@ -13,7 +13,7 @@ class SplitTarFiles:
                  encrypt_key: bytes | None,
                  compression: str,
                  buffer_mem_size: int,
-                 upload_callback: Callable):
+                 upload_callback: Callable[[str], None]):
         self.output_filename_template = output_filename_template
         self.encrypt_key = encrypt_key
         self.compression = compression

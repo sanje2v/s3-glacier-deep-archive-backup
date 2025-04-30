@@ -33,7 +33,7 @@ def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[
     for file_or_dir in iglob(os.path.join(folder, f'**{file_extension}'),
                              recursive=True,
                              include_hidden=True):  # CAUTION: Don't forget to include hidden files
-        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't list symbolic links
+        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't include symbolic links
             yield abspath(file_or_dir)
 
 def MB_to_bytes(value) -> int:
@@ -70,7 +70,7 @@ def checkFilesExistsInS3(bucket: str, tar_files: list[str]) -> list[bool]:
     session = boto3.Session()
     s3_client = session.client('s3')
 
-    results: List[bool] = []
+    results: list[bool] = []
     for tar_file in tar_files:
         try:
             s3_client.head_object(Bucket=bucket, Key=tar_file)

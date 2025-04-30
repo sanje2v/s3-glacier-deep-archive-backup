@@ -1,6 +1,5 @@
 import os
 import logging
-from typing import List
 from http import HTTPStatus
 from datetime import datetime
 
@@ -13,7 +12,7 @@ from libs import TaskType, UploadTaskStatus, WorkerPool, SplitTarFiles, StateDB
 
 
 
-def backup(src_dirs: List[str],
+def backup(src_dirs: list[str],
            output_filename_template: str,
            split_size: int,
            bucket: str,
@@ -37,7 +36,7 @@ def resume(db_filename: str):
     _backup(db_filename, **cmd_args)
 
 
-def list(collate: bool, db_filename: str):
+def show(collate: bool, db_filename: str):
     try:
         with StateDB(db_filename) as state_db:
             record_headers, work_records = state_db.get_work_records_with_headers(collate)
@@ -45,7 +44,7 @@ def list(collate: bool, db_filename: str):
     except ValueError:
         logging.error(f"Corrupted state DB '{db_filename}'!")
         exit(1)
-    
+
     print()
     print()
     print(tabulate(work_records, headers=record_headers, numalign='right', stralign='center'))
@@ -84,7 +83,7 @@ def decrypt(decrypt_key: str,
 
 def delete(all: bool,
            bucket: str,
-           files: List[str],
+           files: list[str],
            db_filename: str):
     with StateDB(db_filename) as state_db:
         match all:
@@ -105,7 +104,7 @@ def delete(all: bool,
 
 
 def _backup(db_filename: str,
-            src_dirs: List[str],
+            src_dirs: list[str],
             output_filename_template: str,
             split_size: int,
             bucket: str,
@@ -115,7 +114,7 @@ def _backup(db_filename: str,
             autoclean: bool,
             test_run: bool):
     assert not encrypt_key or len(encrypt_key) == settings.ENCRYPT_KEY_LENGTH
-    
+
     # CAUTION: Call 'locals()' immediately before any variable assignment so that only this function's arguments are captured
     with StateDB(db_filename, locals()) as state_db:
         # NOTE: This worker pool context will block (i.e. will not exit) until all tasks are done.
@@ -132,7 +131,7 @@ def _backup(db_filename: str,
             os.makedirs(os.path.dirname(output_filename_template), exist_ok=True)
             if compression and not output_filename_template.lower().endswith(f'.{compression}'):
                 output_filename_template += f'.{compression}'
-            
+
             if encrypt:
                 output_filename_template += settings.ENCRYPTED_FILE_EXTENSION
                 encrypt_key = state_db.get_encryption_key()
@@ -157,7 +156,7 @@ def _backup(db_filename: str,
                             already_uploaded_files.remove(src_filename)
                             logging.info(f"Skipping '{src_filename}' as it is marked as '{UploadTaskStatus.UPLOADED}' in state DB!")
                             continue
-                        
+
                         if split_tarfiles.tell() >= split_size:
                             split_tarfiles.create_new_tarfile_part()
 
@@ -169,7 +168,7 @@ def _backup(db_filename: str,
     logging.info("Done")
 
 
-def _delete(state_db: StateDB, bucket: str, tar_files: List[str]):
+def _delete(state_db: StateDB, bucket: str, tar_files: list[str]):
     session = boto3.Session()   # NOTE: Load S3 credentials and configuration from '~/.aws'
     s3_client = session.client('s3')
 
@@ -184,5 +183,5 @@ def _delete(state_db: StateDB, bucket: str, tar_files: List[str]):
             case _:
                 logging.error(f"Failed to delete file '{tar_file}'! "\
                               "Please check that such a file and containing bucket exists.")
-    
+
     logging.info("Done")

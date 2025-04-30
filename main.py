@@ -41,9 +41,9 @@ if __name__ == '__main__':
     resume_parser = subparser.add_parser('resume', help="Resume backing up files from last interrupted state.")
     resume_parser.add_argument('db_filename', help="Filename of the state DB generated during last interrupted backup.", type=abspath, action=ValidateFilesExists)
 
-    list_parser = subparser.add_parser('list', help="List state data from state DB.")
-    list_parser.add_argument('--collate', help="Collate to show only at folder-level.", action=argparse.BooleanOptionalAction, default=False)
-    list_parser.add_argument('db_filename', help="Filename of the state DB generated during backup.", type=abspath, action=ValidateFilesExists)
+    show_parser = subparser.add_parser('show', help="List state data from state DB.")
+    show_parser.add_argument('--collate', help="Collate to show only at folder-level.", action=argparse.BooleanOptionalAction, default=False)
+    show_parser.add_argument('db_filename', help="Filename of the state DB generated during backup.", type=abspath, action=ValidateFilesExists)
 
     decrypt_parser = subparser.add_parser('decrypt', help="Decrypt all downloaded TARs from specified folder.")
     decrypt_parser.add_argument('--autoclean', help="Removes all encrypted TAR files after they have been decrypted.", action=argparse.BooleanOptionalAction, default=True)
@@ -61,4 +61,4 @@ if __name__ == '__main__':
     delete_options_parser.add_argument('--files', help="Delete a specific backup TAR file from AWS Glacier.", type=str, nargs='+')
     delete_parser.add_argument('db_filename', help="Filename of the state DB generated during backup.", type=abspath, action=ValidateFilesExists)
 
-    main(**parser.parse_args().__dict__)
+    main(**vars(parser.parse_args()))

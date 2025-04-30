@@ -1,5 +1,5 @@
 import os.path
-from typing import Optional, Callable
+from collections.abc import Callable
 from Cryptodome.Cipher import ChaCha20
 
 import settings
@@ -9,8 +9,8 @@ from utils import repeat_string_until_length, str_to_bytes
 class EncryptSplitFileObj:
     def __init__(self,
                  output_filename: str,
-                 encrypt_key: Optional[bytes],
-                 upload_callback: Callable):
+                 encrypt_key: bytes | None,
+                 upload_callback: Callable[[str], None]):
         self.output_filename = output_filename
         self.upload_callback = upload_callback
 
@@ -39,9 +39,9 @@ class EncryptSplitFileObj:
     def write(self, b, /):
         if self.chacha20 is not None:
             b = self.chacha20.encrypt(b)
-        
+
         self.output_file.write(b)
-    
+
     def filename(self):
         return self.output_file.name
 

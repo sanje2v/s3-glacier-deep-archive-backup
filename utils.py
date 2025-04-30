@@ -7,7 +7,7 @@ from http import HTTPStatus
 from functools import reduce
 from datetime import datetime
 from contextlib import suppress
-from typing import Generator, List
+from collections.abc import Generator
 
 import boto3
 import botocore.exceptions
@@ -33,7 +33,7 @@ def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[
     for file_or_dir in iglob(os.path.join(folder, f'**{file_extension}'),
                              recursive=True,
                              include_hidden=True):  # CAUTION: Don't forget to include hidden files
-        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't list symbolic link
+        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't list symbolic links
             yield abspath(file_or_dir)
 
 def MB_to_bytes(value) -> int:
@@ -66,7 +66,7 @@ def prettyFilesize(value, decimal_places=1) -> str:
         value /= 1024.0
     return f"{value:.{decimal_places}f} {unit}"
 
-def checkFilesExistsInS3(bucket: str, tar_files: List[str]) -> List[bool]:
+def checkFilesExistsInS3(bucket: str, tar_files: list[str]) -> list[bool]:
     session = boto3.Session()
     s3_client = session.client('s3')
 
@@ -99,7 +99,7 @@ class ValidateBucketExists(argparse.Action):
 
         try:
             s3_client.head_bucket(Bucket=values)
-            
+
         except botocore.exceptions.ClientError as ex:
             if int(ex.response['Error']['Code']) == HTTPStatus.NOT_FOUND:
                 raise argparse.ArgumentError(self, f"The bucket with name '{values}' doesn't exist in S3 server!")
@@ -111,7 +111,7 @@ class ValidateBucketExists(argparse.Action):
 class ValidateFilesExists(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None) -> None:
         isListType = isinstance(values, (list, tuple))
-        
+
         if not isListType:
             values = [values]
 

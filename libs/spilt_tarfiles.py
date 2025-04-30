@@ -10,7 +10,7 @@ import settings
 class SplitTarFiles:
     def __init__(self,
                  output_filename_template: str,
-                 encrypt_key: Optional[bytes],
+                 encrypt_key: bytes | None,
                  compression: str,
                  buffer_mem_size: int,
                  upload_callback: Callable):

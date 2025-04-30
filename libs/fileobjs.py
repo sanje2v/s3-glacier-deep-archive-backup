@@ -15,7 +15,7 @@ class EncryptSplitFileObj:
         self.output_filename = output_filename
         self.upload_callback = upload_callback
 
-        nonce: str = repeat_string_until_length(os.path.basename(output_filename), settings.ENCRYPTION_NONCE_LENGTH)
+        nonce: str = repeat_string_until_length(os.path.basename(output_filename), settings.ENCRYPT_NONCE_LENGTH)
         self.chacha20 = ChaCha20.new(key=encrypt_key, nonce=str_to_bytes(nonce)) if encrypt_key else None
         self.output_file = open(output_filename, mode='wb')
 
@@ -54,9 +54,9 @@ class EncryptSplitFileObj:
 
 
 class DecryptFileObj:
-    def __init__(self, filename: str, decrypt_key: bytes, nonce: bytes):
+    def __init__(self, filename: str, decrypt_key: bytes):
         self.file = open(filename, mode='rb')
-        nonce: str = repeat_string_until_length(os.path.basename(filename), settings.ENCRYPTION_NONCE_LENGTH)
+        nonce: str = repeat_string_until_length(os.path.basename(filename), settings.ENCRYPT_NONCE_LENGTH)
         self.chacha20 = ChaCha20.new(key=decrypt_key, nonce=str_to_bytes(nonce))
 
     def __enter__(self):

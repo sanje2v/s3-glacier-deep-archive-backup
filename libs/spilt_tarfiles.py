@@ -34,7 +34,7 @@ class SplitTarFiles:
         self.close()
 
 
-    def create_new_tarfile_part(self):
+    def create_new_tarfile_part(self) -> None:
         self.close()
         
         self.output_file_idx += 1
@@ -48,19 +48,19 @@ class SplitTarFiles:
                                             mode=f'w:{self.compression if self.compression else ""}',
                                             bufsize=self.buffer_mem_size)
     
-    def tell(self):
+    def tell(self) -> int:
         assert self.fileobj
         return self.fileobj.tell()
 
-    def get_tarfile_name(self):
+    def get_tarfile_name(self) -> str:
         assert self.fileobj
         return os.path.basename(self.fileobj.filename())
 
-    def add(self, filename):
+    def add(self, filename) -> None:
         assert self.current_tarfile
         self.current_tarfile.add(filename)
 
-    def close(self):
+    def close(self) -> None:
         if self.current_tarfile:
             self.current_tarfile.close()
             self.current_tarfile = None

@@ -23,7 +23,6 @@ class WorkerPool:
                  state_db: StateDB,
                  s3_bucket_name: str=None,
                  max_retry_attempts: int=None,
-                 decrypt_key: bytes=None,
                  test_run: bool=False):
         self.num_workers = num_workers
         self.task_type = task_type
@@ -31,7 +30,6 @@ class WorkerPool:
         self.state_db = state_db
         self.s3_bucket_name = s3_bucket_name
         self.max_retry_attempts = max_retry_attempts
-        self.decrypt_key = decrypt_key
         self.test_run = test_run
 
         self.thread_pool = ThreadPoolExecutor(max_workers=num_workers,
@@ -47,7 +45,7 @@ class WorkerPool:
     def _progress_callback(self, total_bytes: int, bytes_processed: int):
         pass
 
-    def _work(self, tar_filename: str):
+    def _work(self, tar_filename: str) -> None:
         assert self.task_type in [TaskType.UPLOAD, TaskType.DECRYPT]
         
         match self.task_type:
@@ -80,7 +78,7 @@ class WorkerPool:
             remove_file_ignore_errors(tar_filename)
 
 
-    def _work_wrapper(self, tar_filename: str):
+    def _work_wrapper(self, tar_filename: str) -> None:
         try:
             tar_file = os.path.basename(tar_filename)
 
@@ -104,5 +102,5 @@ class WorkerPool:
             logging.error(f"Failed to {self.task_type} '{tar_filename}' with '{exception}'.")
 
 
-    def put_on_tasks_queue(self, tar_filename: str):
+    def put_on_tasks_queue(self, tar_filename: str) -> None:
         self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename))

@@ -22,6 +22,7 @@ def backup(src_dirs: list[str],
            autoclean: bool,
            test_run: bool):
     db_filename = datetime.now().strftime(settings.STATE_DB_FILENAME_TEMPLATE)
+    logging.info(f"Recording backup state in '{db_filename}'...")
     _backup(**locals())
 
 
@@ -62,17 +63,13 @@ def sync(bucket: str, db_filename: str):
     logging.info("Done")
 
 
-def decrypt(decrypt_key: str,
-            autoclean: bool,
+def decrypt(autoclean: bool,
             db_filename: str,
             tar_files_folder: str):
-    assert not decrypt_key or len(decrypt_key) == settings.ENCRYPT_KEY_LENGTH
-
     with StateDB(db_filename) as state_db:
         with WorkerPool(num_workers=settings.DEFAULT_NUM_UPLOAD_WORKERS,
                         task_type=TaskType.DECRYPT,
                         state_db=state_db,
-                        decrypt_key=str_to_bytes(decrypt_key),
                         autoclean=autoclean) as decrypt_worker_pool:
                 for encrypted_tar_filename in list_files_recursive_iter(tar_files_folder,
                                                                         file_extension=settings.ENCRYPTED_FILE_EXTENSION):
@@ -113,8 +110,6 @@ def _backup(db_filename: str,
             encrypt: bool,
             autoclean: bool,
             test_run: bool):
-    assert not encrypt_key or len(encrypt_key) == settings.ENCRYPT_KEY_LENGTH
-
     # CAUTION: Call 'locals()' immediately before any variable assignment so that only this function's arguments are captured
     with StateDB(db_filename, locals()) as state_db:
         # NOTE: This worker pool context will block (i.e. will not exit) until all tasks are done.

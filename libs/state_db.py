@@ -1,11 +1,10 @@
 import os
 import json
-import secrets
 import sqlite3
 sqlite3.threadsafety = 3    # CAUTION: Make serialized (i.e. 3) is enabled as we write to db from multiple threads
 from threading import Lock
 from datetime import datetime, timezone
-from typing import Union
+from typing import Union, Any
 
 from consts import MAX_LINUX_PATH_LENGTH, MAX_LINUX_FILENAME_LENGTH
 from utils import *
@@ -28,13 +27,14 @@ class StateDB:
         if cmd_args:
             self._record_run(cmd_args)
 
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.state_db.close()
 
-    def _execute(self, sql_cmds_to_execute, return_value=False):
+    def _execute(self, sql_cmds_to_execute, return_value=False) -> Union[None, Any]:
         with self.mutex:
             cursor = self.state_db.execute(sql_cmds_to_execute)
             match return_value:
@@ -44,7 +44,7 @@ class StateDB:
                 case True:
                     return cursor.fetchall()
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         self._execute(f"CREATE TABLE IF NOT EXISTS {StateDB.WORKS_TABLE_NAME} "\
                       "(id INTEGER PRIMARY KEY AUTOINCREMENT,"\
                       "datetime DATETIME,"\
@@ -60,12 +60,12 @@ class StateDB:
         self._execute(f"CREATE TABLE IF NOT EXISTS {StateDB.SECRETS_TABLE_NAME} "\
                       f"(encryption_key VARCHAR({settings.ENCRYPT_KEY_LENGTH}));")
 
-    def _record_run(self, cmd_args_dict):
+    def _record_run(self, cmd_args_dict) -> None:
         self._execute(f"INSERT INTO {StateDB.RUNS_TABLE_NAME} "\
                       "(datetime, cmd_args_json) VALUES "\
                       f"('{datetime.now(timezone.utc)}', '{json.dumps(cmd_args_dict)}');")
 
-    def _process_work_records(self, work_records):
+    def _process_work_records(self, work_records) -> list[list[Union[int, str]]]:
         output_work_records = []
         for id, datetime_, tar_file, filename, modified_time, size, status in work_records:
             output_work_records.append([id,
@@ -84,6 +84,7 @@ class StateDB:
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
+
     def get_last_cmd_args(self) -> dict[str, Union[str, int]]:
         try:
             cmd_args_json = self._execute(f"SELECT cmd_args_json FROM {StateDB.RUNS_TABLE_NAME} "\
@@ -96,10 +97,12 @@ class StateDB:
     def get_encryption_key(self) -> bytes:
         try:
             encryption_key = self._execute(f"SELECT encryption_key FROM {StateDB.SECRETS_TABLE_NAME} "\
-                                           "LIMIT 1;", return_value=True)[0][0]
+                                           "LIMIT 1;", return_value=True)
             if not encryption_key:
-                encryption_key = secrets.token_urlsafe(settings.ENCRYPT_KEY_LENGTH)
+                encryption_key = generate_password(settings.ENCRYPT_KEY_LENGTH)
                 self._set_encryption_key(encryption_key)
+            else:
+                encryption_key = encryption_key[0][0]
             
             return str_to_bytes(encryption_key)
 

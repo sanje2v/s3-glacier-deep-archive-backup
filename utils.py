@@ -1,5 +1,6 @@
 import os
 import os.path
+import secrets
 import argparse
 from glob import iglob
 from dateutil import tz
@@ -35,6 +36,10 @@ def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[
                              include_hidden=True):  # CAUTION: Don't forget to include hidden files
         if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't include symbolic links
             yield abspath(file_or_dir)
+
+def generate_password(length: int) -> str:
+    characters = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789;,./<>!@#$%^&*()-_+=[{]}|~`'
+    return ''.join(secrets.choice(characters) for i in range(length))
 
 def MB_to_bytes(value) -> int:
     return (value * 1024 * 1024)

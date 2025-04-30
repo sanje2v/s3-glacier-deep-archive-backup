@@ -20,7 +20,7 @@ Use `python3 main.py --help` to list comands that are avaliable. Command output 
 ## Backing up folders
 To backup your folders, you may use the following command:
 
-`python3 main.py backup --src-dirs /path/to/your/folder1 /path/to/your/folder2 --bucket=mybucket --encrypt-key=<KEY of 32 chars> --compression=gz /tmp/temp_folder/output.tar`
+`python3 main.py backup --src-dirs /path/to/your/folder1 /path/to/your/folder2 --bucket=mybucket --encrypt --compression=gz /tmp/temp_folder/output.tar`
 
 This command will recursively list the files in `/path/to/your/folder1` and `/path/to/your/folder2`, compress them into several tar files using `gzip` compression, encrypts the tar files with `ChaCha20` encryption algorithm using key `mykey` and uploads it to S3 bucket `mybucket` while assigning `Glacier Archive` class. The generated TAR files of this command will be saved in `/tmp/temp_folder/` and subsequently deleted after they are uploaded.
 
@@ -47,7 +47,7 @@ If you chose to encrypt your files during upload, naturally they must be decrypt
 
 Once the encrypted files are downloaded in a folder, you can use the `decrypt` command as follows:
 
-`python3 main.py decrypt --decrypt-key=<KEY of 32 chars> /folder/of/encrypted/files`
+`python3 main.py decrypt ./20250101_000000_backup_statedb.sqlite3 /folder/of/encrypted/files`
 
 
 ## Synchronize state DB with remote S3 server

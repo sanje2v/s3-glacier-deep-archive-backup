@@ -76,11 +76,11 @@ class StateDB:
                                         prettyFilesize(size),
                                         UploadTaskStatus(status)])
         return output_work_records
-    
+
     def _set_encryption_key(self, encryption_key: str) -> None:
         try:
             self._execute(f"INSERT INTO {StateDB.SECRETS_TABLE_NAME} "\
-                          f"(encryption_key) VALUES ('{encryption_key}');")
+                          f"(encryption_key) VALUES ('{encryption_key.replace("'", "''").replace(r'/', r'//')}');")    # CAUTION: Single quotes and backslash must be escaped with repeat
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
@@ -93,7 +93,7 @@ class StateDB:
 
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
-        
+
     def get_encryption_key(self) -> bytes:
         try:
             encryption_key = self._execute(f"SELECT encryption_key FROM {StateDB.SECRETS_TABLE_NAME} "\
@@ -103,7 +103,7 @@ class StateDB:
                 self._set_encryption_key(encryption_key)
             else:
                 encryption_key = encryption_key[0][0]
-            
+
             return str_to_bytes(encryption_key)
 
         except sqlite3.OperationalError as ex:
@@ -152,7 +152,7 @@ class StateDB:
                                          return_value=True)
             work_records = list(map(lambda x: x[0], work_records))
             return work_records
-        
+
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
@@ -171,12 +171,12 @@ class StateDB:
                     self._execute(f"UPDATE {StateDB.WORKS_TABLE_NAME} "\
                                   f"SET datetime='{datetime.now(timezone.utc)}', status='{task_status}' "\
                                   f"WHERE tar_file='{tar_file}';")
-        
+
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
     def delete_all_work_records(self) -> None:
         self._execute(f"DELETE FROM {StateDB.WORKS_TABLE_NAME};")
-    
+
     def delete_work_record(self, tar_file: str) -> None:
         self._execute(f"DELETE FROM {StateDB.WORKS_TABLE_NAME} WHERE tar_file='{tar_file}';")

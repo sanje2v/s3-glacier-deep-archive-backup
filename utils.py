@@ -1,5 +1,5 @@
 import os
-import os.path
+import string
 import secrets
 import argparse
 from glob import iglob
@@ -38,7 +38,7 @@ def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[
             yield abspath(file_or_dir)
 
 def generate_password(length: int) -> str:
-    characters = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789;,./<>!@#$%^&*()-_+=[{]}|~`'
+    characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(characters) for i in range(length))
 
 def MB_to_bytes(value) -> int:

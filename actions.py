@@ -37,7 +37,7 @@ def resume(db_filename: str):
     _backup(db_filename, **cmd_args)
 
 
-def show(collate: bool, db_filename: str):
+def show(collate: int, db_filename: str):
     try:
         with StateDB(db_filename) as state_db:
             record_headers, work_records = state_db.get_work_records_with_headers(collate)

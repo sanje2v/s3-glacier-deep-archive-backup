@@ -41,6 +41,10 @@ def generate_password(length: int) -> str:
     characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(characters) for i in range(length))
 
+def escape_sql_escape_chars(value: str) -> str:
+    # Escape single quotes and backslashes in SQL string
+    return value.replace("'", "''").replace(r'/', r'//')
+
 def MB_to_bytes(value) -> int:
     return (value * 1024 * 1024)
 
@@ -165,5 +169,13 @@ class ValidateFilename(argparse.Action):
 
         if not isListType:
             values = values[0]
+
+        setattr(namespace, self.dest, values)
+
+
+class ValidateGreaterOrEqualTo0(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None) -> None:
+        if values < 0:
+            raise argparse.ArgumentError(self, f"Value must be greater than or equal to 0!")
 
         setattr(namespace, self.dest, values)

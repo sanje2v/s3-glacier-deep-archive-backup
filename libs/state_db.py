@@ -34,7 +34,7 @@ class StateDB:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.state_db.close()
 
-    def _execute(self, sql_cmds_to_execute, return_value=False) -> Union[None, Any]:
+    def _execute(self, sql_cmds_to_execute, return_value=False) -> Union[None, list[list[Any]]]:
         with self.mutex:
             cursor = self.state_db.execute(sql_cmds_to_execute)
             match return_value:
@@ -80,7 +80,8 @@ class StateDB:
     def _set_encryption_key(self, encryption_key: str) -> None:
         try:
             self._execute(f"INSERT INTO {StateDB.SECRETS_TABLE_NAME} "\
-                          f"(encryption_key) VALUES ('{encryption_key.replace("'", "''").replace(r'/', r'//')}');")    # CAUTION: Single quotes and backslash must be escaped with repeat
+                          f"(encryption_key) VALUES ('{escape_sql_escape_chars(encryption_key)}');")    # CAUTION: Single quotes and backslash must be escaped with repeat
+        
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
@@ -109,7 +110,7 @@ class StateDB:
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
-    def get_work_records_with_headers(self, collate: bool) -> tuple[list[str], list[list[Union[str, int, bool]]]]:
+    def get_work_records_with_headers(self, collate: int) -> tuple[list[str], list[list[Union[str, int, bool]]]]:
         try:
             cmd_to_execute = f"SELECT * FROM {StateDB.WORKS_TABLE_NAME} ORDER BY id ASC, filename ASC;"
             work_records = self._execute(cmd_to_execute, return_value=True)
@@ -121,6 +122,13 @@ class StateDB:
                 collated_work_records = {}
                 for id, datetime, tar_file, filename, modified_time, size, status in work_records:
                     dirname = os.path.dirname(filename)
+                    for _ in range(collate - 1):
+                        dirname_ = os.path.dirname(dirname)
+                        if dirname_ == dirname:
+                            break   # We have reached the most top-level folder, so no need to go further
+                        else:
+                            dirname = dirname_
+
                     if dirname not in collated_work_records:
                         collated_work_records[dirname] = [id, datetime, {tar_file}, dirname, (status == UploadTaskStatus.UPLOADED)]
                     else:
@@ -165,7 +173,7 @@ class StateDB:
                     modified_time, size = int(stat.st_mtime), stat.st_size
                     self._execute(f"INSERT INTO {StateDB.WORKS_TABLE_NAME} "\
                                   "(datetime, tar_file, filename, modified_time, size, status) VALUES "\
-                                  f"('{datetime.now(timezone.utc)}', '{tar_file}', '{filename}', {modified_time}, {size}, '{task_status}');")
+                                  f"('{datetime.now(timezone.utc)}', '{tar_file}', '{escape_sql_escape_chars(filename)}', {modified_time}, {size}, '{task_status}');")
                 case _:
                     assert tar_file
                     self._execute(f"UPDATE {StateDB.WORKS_TABLE_NAME} "\

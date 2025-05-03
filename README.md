@@ -1,5 +1,5 @@
 # Introduction
-This program eases the use of Amazon S3 Glacier Archive for backing up your data by relieving some burdens like - maintaining records of what has been backuped up, allowing retry on backup uploads in cases of intermittent internet connection failures, allowing resumption from last checkpoint (if the program was closed abruptly), uploading using multiple threads and ability to split the backup into several TAR files so that we need to only download few parts from the whole backup to lower restoration cost while doing partial recovery.
+This program eases the use of Amazon S3 Glacier Archive for backing up your data by relieving some burdens like - maintaining records of what has been backed up, automatic retries on backup uploads in cases of intermittent internet connection failures, allowing resumption from last checkpoint (if the program was closed abruptly), uploading using multiple threads and ability to split the backup into several TAR files so that we need to only download few files reducing cost doing partial recovery.
 
 More info at: https://TODO
 
@@ -9,7 +9,7 @@ More info at: https://TODO
 2. All required Python modules are listed under `requirements.txt`.
 
 # Setup
-After you setup your Python environment according to requirements above, you'll also need to setup AWS `config` and `credentials` files in `~/.aws` as according to [this](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html) link.
+After you setup your Python environment according to requirements section above, you'll also need to setup AWS `config` and `credentials` files in `~/.aws` as according to [this](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html) link.
 
 If you are testing, you can setup a local Minio as S3 server using `testing/docker-compose.yaml`.
 
@@ -39,7 +39,7 @@ When you start a backup process, the program generates a state database in the s
 
 You could also choose to see a collated view of only folders rather than individual files:
 
-`python3 main.py list --collate ./20250101_000000_backup_statedb.sqlite3`
+`python3 main.py list --collate=2 ./20250101_000000_backup_statedb.sqlite3`
 
 
 ## Decrypt downloaded TAR files

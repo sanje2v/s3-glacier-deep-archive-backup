@@ -42,7 +42,7 @@ if __name__ == '__main__':
     resume_parser.add_argument('db_filename', help="Filename of the state DB generated during last interrupted backup.", type=abspath, action=ValidateFilesExists)
 
     show_parser = subparser.add_parser('show', help="List state data from state DB.")
-    show_parser.add_argument('--collate', help="Collate to show only at folder-level.", action=argparse.BooleanOptionalAction, default=False)
+    show_parser.add_argument('--collate', help="Collate level to show only at folder-level.", type=int, action=ValidateGreaterOrEqualTo0, default=0)
     show_parser.add_argument('db_filename', help="Filename of the state DB generated during backup.", type=abspath, action=ValidateFilesExists)
 
     decrypt_parser = subparser.add_parser('decrypt', help="Decrypt all downloaded TARs from specified folder.")

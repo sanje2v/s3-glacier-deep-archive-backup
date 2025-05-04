@@ -1,7 +1,7 @@
 # Introduction
 This program eases the use of Amazon S3 Glacier Archive for backing up your data by relieving some burdens like - maintaining records of what has been backed up, automatic retries on backup uploads in cases of intermittent internet connection failures, allowing resumption from last checkpoint (when the program was closed abruptly), uploading using multiple threads and ability to split the backup into several TAR files so that only few files need to be downloaded - reducing cost when doing partial recovery.
 
-More info at: https://TODO
+More info at: [Blog](https://sanje2v.wordpress.com/2025/05/04/program-to-easily-backup-your-files-on-amazon-s3-glacier-deep-archive/)
 
 
 # Requirements
@@ -19,10 +19,10 @@ If you are testing instead, you can setup a local Minio as S3 server using `test
 * Encyption is supported using `ChaCha20` algorithm that is enabled by default. The encryption key is stored in the generated state database. Nonce/Initialization Vector is the filename of the encrypted TAR, so don't rename your TAR files until they have been decrypted.
 * Unless your files are all/mostly documents, you might want to keep compression disabled (default) as it might take a lot of compute and memory resources.
 * Uploads are multi-threaded and if all fail due to network problems, the program will retry infinite number of times.
-* Keep `--num-upload-workers` small (no more than 2) unless you have upload bandwidth of about 100 Mbits/secs.
+* Keep `--num-upload-workers` small (no more than 2) unless you have upload bandwidth of more than 100 Mbits/secs. If you internet bandwidth is low, you may experience network connection issues on other devices as well as multiple backup upload failures.
 
 # Usage
-Use `python3 main.py --help` to list comands that are avaliable. Command output is also logged in `main.log` generated under `logs` folder.
+Use `python3 main.py --help` to list comands that are avaliable. Command output are also logged in `main.log` generated under `logs` folder.
 
 ## Backing up folders
 To backup your folders, you may use the following command:
@@ -66,4 +66,7 @@ If you delete some files in the remote server and would like to re-sync your loc
 ## Delete files from remote S3 server
 If you want to delete some files in the remote server, you can use the `delete` command as follows:
 
-`python main.py delete --bucket=mybucket --files 001_outputfile.tar.gz ./20250101_000000_backup_statedb.sqlite3`
+`python3 main.py delete --bucket=mybucket --files 001_outputfile.tar.gz ./20250101_000000_backup_statedb.sqlite3`
+
+# License
+Please refer to `LICENSE.md` file.

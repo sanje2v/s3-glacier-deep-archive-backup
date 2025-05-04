@@ -10,17 +10,18 @@ import settings
 class SplitTarFiles:
     def __init__(self,
                  output_filename_template: str,
+                 output_file_idx: int,
                  encrypt_key: bytes | None,
                  compression: str,
                  buffer_mem_size: int,
                  upload_callback: Callable[[str], None]):
         self.output_filename_template = output_filename_template
+        self.output_file_idx = output_file_idx
         self.encrypt_key = encrypt_key
         self.compression = compression
         self.buffer_mem_size = buffer_mem_size
         self.upload_callback = upload_callback
 
-        self.output_file_idx = -1
         self.fileobj = None
         self.current_tarfile = None
 
@@ -36,8 +37,7 @@ class SplitTarFiles:
 
     def create_new_tarfile_part(self) -> None:
         self.close()
-        
-        self.output_file_idx += 1
+
         output_filename = os.path.join(os.path.dirname(self.output_filename_template),
                                        f"{self.output_file_idx:03}_{os.path.basename(self.output_filename_template)}")
         self.fileobj = EncryptSplitFileObj(output_filename,
@@ -47,7 +47,8 @@ class SplitTarFiles:
                                             format=settings.TARFILE_FORMAT,
                                             mode=f'w:{self.compression if self.compression else ""}',
                                             bufsize=self.buffer_mem_size)
-    
+        self.output_file_idx += 1
+
     def tell(self) -> int:
         assert self.fileobj
         return self.fileobj.tell()

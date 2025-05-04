@@ -1,11 +1,14 @@
+import random
 import os.path
 import logging
+from time import sleep
 from copy import deepcopy
 from functools import partial
 from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 import boto3.session
+from rich.progress import Progress, Task
 
 from .common import TaskType, UploadTaskStatus
 from .state_db import StateDB
@@ -22,50 +25,56 @@ class WorkerPool:
                  autoclean: bool,
                  state_db: StateDB,
                  s3_bucket_name: str=None,
-                 max_retry_attempts: int=None,
                  test_run: bool=False):
         self.num_workers = num_workers
         self.task_type = task_type
         self.autoclean = autoclean
         self.state_db = state_db
         self.s3_bucket_name = s3_bucket_name
-        self.max_retry_attempts = max_retry_attempts
         self.test_run = test_run
 
         self.thread_pool = ThreadPoolExecutor(max_workers=num_workers,
                                               thread_name_prefix=f's3-glacier-backup-{self.task_type}')
+        self.progresses = Progress(transient=True)
+        self.progresses.start()
+        self.progress_tasks_dict: dict[str, Task] = {}
 
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.thread_pool.shutdown(wait=True)     # Wait for everything to be uploaded/downloaded before disposing thread pool
+        # Wait for everything to be uploaded/downloaded before disposing thread pool unless it is Ctrl+c
+        self.thread_pool.shutdown(wait=(exc_type is not KeyboardInterrupt), cancel_futures=True)
+        del self.thread_pool
 
-    def _progress_callback(self, total_bytes: int, bytes_processed: int):
-        pass
+    def _upload_progress_callback(self, tar_file: str, bytes_processed: int):
+        self.progresses.update(self.progress_tasks_dict[tar_file], advance=bytes_processed)
 
-    def _work(self, tar_filename: str) -> None:
+    def _work(self, tar_file: str, tar_filename: str) -> None:
         assert self.task_type in [TaskType.UPLOAD, TaskType.DECRYPT]
-        
+
         match self.task_type:
             case TaskType.UPLOAD:
                 session = boto3.Session()   # NOTE: Load S3 credentials and configuration from '~/.aws'
                 s3_client = session.client('s3',
-                                            config=boto3.session.Config(max_pool_connections=2,
-                                                                        retries={'max_attempts': self.max_retry_attempts,
+                                            config=boto3.session.Config(max_pool_connections=settings.MAX_CONCURRENT_SINGLE_FILE_UPLOADS,
+                                                                        retries={'max_attempts': settings.MAX_RETRY_ATTEMPTS,
                                                                                 'mode': 'standard'}))
                 S3_EXTRA_ARGS_DICT = {
                     'ChecksumAlgorithm': 'sha256'
                 }
                 if not self.test_run:
-                    S3_EXTRA_ARGS_DICT['StorageClass'] = 'DEEP_ARCHIVE'     # If using Amazon AWS (not local debug endpoint), ask to put it in Glacier Deep Archive
-                
+                    # If using Amazon AWS (not local debug endpoint), ask to put it in Glacier Deep Archive
+                    S3_EXTRA_ARGS_DICT['StorageClass'] = 'DEEP_ARCHIVE'
+
+                self.progress_tasks_dict[tar_file] = self.progresses.add_task(description=f"Uploading '{tar_file}'",
+                                                                              total=os.path.getsize(tar_filename))
                 s3_client.upload_file(tar_filename,
-                                      self.s3_bucket_name,
-                                      os.path.basename(tar_filename),
-                                      Callback=partial(self._progress_callback, os.path.getsize(tar_filename)),
-                                      ExtraArgs=S3_EXTRA_ARGS_DICT)
+                                    self.s3_bucket_name,
+                                    tar_file,
+                                    Callback=partial(self._upload_progress_callback, tar_file),
+                                    ExtraArgs=S3_EXTRA_ARGS_DICT)
 
             case TaskType.DECRYPT:
                 decryption_key = self.state_db.get_encryption_key()
@@ -79,27 +88,34 @@ class WorkerPool:
 
 
     def _work_wrapper(self, tar_filename: str) -> None:
-        try:
-            tar_file = os.path.basename(tar_filename)
+        tar_file = os.path.basename(tar_filename)
 
+        retry = True
+        while retry:
             # Work started
             if self.task_type == TaskType.UPLOAD:
                 self.state_db.record_changed_work_state(UploadTaskStatus.STARTED, tar_file=tar_file)
             logging.info(f"{'Uploading' if self.task_type == TaskType.UPLOAD else 'Decrypting'} '{tar_filename}'...")
 
-            # Doing work
-            self._work(tar_filename)
+            try:
+                # Doing work
+                self._work(tar_file, tar_filename)
+                retry = False
 
-            # Work succeeded
-            if self.task_type == TaskType.UPLOAD:
-                self.state_db.record_changed_work_state(UploadTaskStatus.UPLOADED, tar_file=tar_file)
-            logging.info(f"{'Uploaded' if self.task_type == TaskType.UPLOAD else 'Decrypted'} '{tar_filename}'.")
+            except Exception as ex:
+                # Work failed
+                if self.task_type == TaskType.UPLOAD:
+                    self.state_db.record_changed_work_state(UploadTaskStatus.FAILED, tar_file=tar_file)
+                logging.error(f"Failed to {self.task_type} '{tar_filename}' with '{repr(ex)}'.")
 
-        except Exception as exception:
-            # Work failed
-            if self.task_type == TaskType.UPLOAD:
-                self.state_db.record_changed_work_state(UploadTaskStatus.FAILED, tar_file=tar_file)
-            logging.error(f"Failed to {self.task_type} '{tar_filename}' with '{exception}'.")
+                wait_mins = random.randint(**settings.RETRY_WAIT_TIME_RANGE_MINS)
+                logging.info(f"Will be retrying in {wait_mins} minutes.")
+                sleep(mins_to_secs(wait_mins))
+
+        # Work succeeded
+        if self.task_type == TaskType.UPLOAD:
+            self.state_db.record_changed_work_state(UploadTaskStatus.UPLOADED, tar_file=tar_file)
+        logging.info(f"{'Uploaded' if self.task_type == TaskType.UPLOAD else 'Decrypted'} '{tar_filename}'.")
 
 
     def put_on_tasks_queue(self, tar_filename: str) -> None:

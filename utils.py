@@ -18,15 +18,15 @@ from consts import MAX_LINUX_PATH_LENGTH
 import settings
 
 
-def str_to_bytes(value) -> bytes:
+def str_to_bytes(value: str) -> bytes:
     assert isinstance(value, str)
     return value.encode('utf-8')
 
-def abspath(path) -> str:
+def abspath(path: str) -> str:
     # This function properly expands '~' while expanding to absolute path
     return os.path.abspath(os.path.expanduser(path))
 
-def remove_file_ignore_errors(filename) -> None:
+def remove_file_ignore_errors(filename: str) -> None:
     with suppress(OSError):
         os.remove(filename)
 
@@ -43,13 +43,16 @@ def generate_password(length: int) -> str:
 
 def escape_sql_escape_chars(value: str) -> str:
     # Escape single quotes and backslashes in SQL string
-    return value.replace("'", "''").replace(r'/', r'//')
+    return value.replace("'", "''").replace('\\', '\\\\')
 
-def MB_to_bytes(value) -> int:
+def MB_to_bytes(value: int) -> int:
     return (value * 1024 * 1024)
 
-def GB_to_bytes(value) -> int:
+def GB_to_bytes(value: int) -> int:
     return MB_to_bytes(value) * 1024
+
+def mins_to_secs(value: int) -> int:
+    return (value * 60)
 
 def repeat_string_until_length(value: str, length: int) -> str:
     a, b = divmod(length, len(value))
@@ -58,10 +61,10 @@ def repeat_string_until_length(value: str, length: int) -> str:
 def isAWSConfigAndCredentialsOK() -> bool:
     return len(boto3.Session().available_profiles) > 0
 
-def toLocalDateTimeFromUTCString(value) -> str:
+def toLocalDateTimeFromUTCString(value: str) -> str:
     return datetime.fromisoformat(value).replace(tzinfo=tz.UTC).astimezone()
 
-def prettyDateTimeString(value) -> str:
+def prettyDateTimeString(value: str) -> str:
     return datetime.strftime(value, "%Y-%m-%d %I:%M:%S %p %Z") # eg: 2025-02-01 3:05:00 PM AEST
 
 def maxStrEnumValue(enum_class_type) -> int:
@@ -171,7 +174,6 @@ class ValidateFilename(argparse.Action):
             values = values[0]
 
         setattr(namespace, self.dest, values)
-
 
 class ValidateGreaterOrEqualTo0(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None) -> None:

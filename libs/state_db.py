@@ -81,7 +81,7 @@ class StateDB:
         try:
             self._execute(f"INSERT INTO {StateDB.SECRETS_TABLE_NAME} "\
                           f"(encryption_key) VALUES ('{escape_sql_escape_chars(encryption_key)}');")    # CAUTION: Single quotes and backslash must be escaped with repeat
-        
+
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
@@ -121,10 +121,10 @@ class StateDB:
 
                 collated_work_records = {}
                 for id, datetime, tar_file, filename, modified_time, size, status in work_records:
-                    dirname = os.path.dirname(filename)
-                    for _ in range(collate - 1):
+                    dirname = filename
+                    for _ in range(collate):
                         dirname_ = os.path.dirname(dirname)
-                        if dirname_ == dirname:
+                        if dirname_ in ['/', '']:
                             break   # We have reached the most top-level folder, so no need to go further
                         else:
                             dirname = dirname_

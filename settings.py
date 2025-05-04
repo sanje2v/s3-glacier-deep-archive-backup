@@ -11,29 +11,42 @@ LOG_FILENAME = os.path.join(LOG_DIR, 'main.log')
 MAX_LOG_SIZE_BYTES = MB_to_bytes(1)
 LOG_NUM_BACKUPS = 8
 LOGGING_LEVEL = logging.INFO
-LOGGING_FORMAT = '%(asctime)s - [%(levelname)s] - %(message)s'
+LOGGING_HIGHLIGHT_KEYWORDS = [
+    'Recording',
+    'Starting',
+    'Processing',
+    'Uploading',
+    'Uploaded',
+    'Failed',
+    'Done']
 LOGGING_CONFIG_DICT = {
     'version': 1,
     'formatters': {
-        'default': {
-            'format': LOGGING_FORMAT,
-    }},
+        'file_log_formatter': {
+            'format': "%(asctime)s - [%(levelname)s] - %(message)s",
+        },
+        'rich_console_formatter': {
+            'format': "%(asctime)s - %(message)s"
+        }
+    },
     'handlers': {
-        'default_log_handler': {
+        'file_log_handler': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'formatter': 'default',
+            'formatter': 'file_log_formatter',
             'filename': LOG_FILENAME,
             'maxBytes': MAX_LOG_SIZE_BYTES,
             'backupCount': LOG_NUM_BACKUPS
     },
-        'console_handler': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'default',
-            'stream': 'ext://sys.stdout'
+        'rich_console_handler': {
+            'class': 'rich.logging.RichHandler',
+            'formatter': 'rich_console_formatter',
+            'show_level': True,
+            'show_path': False,
+            'keywords': LOGGING_HIGHLIGHT_KEYWORDS
     }},
     'root': {
         'level': LOGGING_LEVEL,
-        'handlers': ['default_log_handler', 'console_handler']
+        'handlers': ['file_log_handler', 'rich_console_handler']
     }
 }
 
@@ -48,5 +61,7 @@ ENCRYPTED_FILE_EXTENSION = '.ChaCha20'
 TARFILE_FORMAT = tarfile.PAX_FORMAT
 BUFFER_MEM_SIZE_BYTES = MB_to_bytes(500)     # Process this size block at a time
 
-MAX_RETRY_ATTEMPTS = 8
+MAX_CONCURRENT_SINGLE_FILE_UPLOADS = 3
+MAX_RETRY_ATTEMPTS = 16
+RETRY_WAIT_TIME_RANGE_MINS = (30, 180)
 STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M%S_backup_statedb.sqlite3'

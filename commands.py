@@ -4,7 +4,8 @@ from http import HTTPStatus
 from datetime import datetime
 
 import boto3
-from tabulate import tabulate
+from rich.table import Table
+from rich import print
 
 import settings
 from utils import *
@@ -46,9 +47,15 @@ def show(collate: int, db_filename: str):
         logging.error(f"Corrupted state DB '{db_filename}'!")
         exit(1)
 
+    table = Table(title="Backup Records")
+    for header in record_headers:
+        table.add_column(header, justify='center')
+
+    for record in work_records:
+        table.add_row(*[str(cell) for cell in record])
+
     print()
-    print()
-    print(tabulate(work_records, headers=record_headers, numalign='right', stralign='center'))
+    print(table)
     print()
 
 
@@ -117,7 +124,6 @@ def _backup(db_filename: str,
                         s3_bucket_name=bucket,
                         num_workers=num_upload_workers,
                         task_type=TaskType.UPLOAD,
-                        max_retry_attempts=settings.MAX_RETRY_ATTEMPTS,
                         autoclean=autoclean,
                         test_run=test_run) as upload_worker_pool:
             split_size = MB_to_bytes(split_size) if test_run else GB_to_bytes(split_size)   # CAUTION: For testing, we use MB splits for ease
@@ -133,13 +139,17 @@ def _backup(db_filename: str,
             else:
                 encrypt_key = None
 
+            # If resuming backup/uploads, we skip files that were already processed
+            already_uploaded_files = state_db.get_already_uploaded_files()
+            output_filename_idx = len(state_db.get_already_uploaded_files(tar_files_instead=True))
+
             with SplitTarFiles(output_filename_template,
+                               output_filename_idx,
                                encrypt_key,
                                compression,
                                settings.BUFFER_MEM_SIZE_BYTES,
                                upload_worker_pool.put_on_tasks_queue) as split_tarfiles:
-                # If resuming backup/uploads, we skip files that were already processed
-                already_uploaded_files = state_db.get_already_uploaded_files()
+                logging.info(f"Starting a new TAR file '{split_tarfiles.get_tarfile_name()}' for backup...")
 
                 # For each directory, enumerate files and add them to a tar file
                 for src_dir in src_dirs:
@@ -154,7 +164,9 @@ def _backup(db_filename: str,
 
                         if split_tarfiles.tell() >= split_size:
                             split_tarfiles.create_new_tarfile_part()
+                            logging.info(f"Starting a new TAR file '{split_tarfiles.get_tarfile_name()}' for backup...")
 
+                        logging.info(f"Processing '{src_filename}'...")
                         state_db.record_changed_work_state(UploadTaskStatus.SCHEDULED,
                                                            filename=src_filename,
                                                            tar_file=split_tarfiles.get_tarfile_name())

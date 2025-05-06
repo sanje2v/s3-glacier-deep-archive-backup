@@ -9,7 +9,7 @@ from consts import TAR_COMPRESSION_TYPES
 
 
 def main(command, **kwargs):
-    if not isAWSConfigAndCredentialsOK():
+    if command in ['backup', 'resume', 'sync', 'delete'] and not isAWSConfigAndCredentialsOK():
         logging.error("Please check for proper S3 configuration and credentials in '~/.aws'!")
         exit(1)     # Cannot continue without proper S3 credentials and configurations
 

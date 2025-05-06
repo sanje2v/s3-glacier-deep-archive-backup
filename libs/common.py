@@ -8,5 +8,6 @@ class TaskType(StrEnum):
 class UploadTaskStatus(StrEnum):
     SCHEDULED = 'scheduled'
     STARTED = 'started'
+    PACKAGED = 'packaged'
     FAILED = 'failed'
     UPLOADED = 'uploaded'

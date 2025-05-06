@@ -164,6 +164,17 @@ class StateDB:
         except sqlite3.OperationalError as ex:
             raise ValueError("Corrupted DB!") from ex
 
+    def get_already_packaged_tar_files(self) -> list[str]:
+        try:
+            work_records = self._execute("SELECT DISTINCT tar_file "\
+                                         f"FROM {StateDB.WORKS_TABLE_NAME} WHERE status='{UploadTaskStatus.PACKAGED}';",
+                                         return_value=True)
+            work_records = list(map(lambda x: x[0], work_records))
+            return work_records
+
+        except sqlite3.OperationalError as ex:
+            raise ValueError("Corrupted DB!") from ex
+
     def record_changed_work_state(self, task_status: UploadTaskStatus, filename: str=None, tar_file: str=None) -> None:
         try:
             match task_status:

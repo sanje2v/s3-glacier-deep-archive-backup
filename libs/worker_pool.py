@@ -4,7 +4,8 @@ import logging
 from time import sleep
 from copy import deepcopy
 from functools import partial
-from concurrent.futures import ThreadPoolExecutor
+from threading import BoundedSemaphore
+from concurrent.futures import ThreadPoolExecutor, Future
 
 import boto3
 import boto3.session
@@ -35,9 +36,12 @@ class WorkerPool:
 
         self.thread_pool = ThreadPoolExecutor(max_workers=num_workers,
                                               thread_name_prefix=f's3-glacier-backup-{self.task_type}')
-        self.progresses = Progress(transient=True)
-        self.progresses.start()
-        self.progress_tasks_dict: dict[str, Task] = {}
+        self.task_futures: list[Future] = []
+        self.task_submission_limiting_semaphore = BoundedSemaphore(num_workers + settings.NUM_WORKS_PRODUCE_AHEAD)
+        if task_type == TaskType.UPLOAD:
+            self.progresses = Progress(transient=True, refresh_per_second=1)
+            self.progresses.start()
+            self.progress_tasks_dict: dict[str, Task] = {}
 
 
     def __enter__(self):
@@ -71,10 +75,10 @@ class WorkerPool:
                 self.progress_tasks_dict[tar_file] = self.progresses.add_task(description=f"Uploading '{tar_file}'",
                                                                               total=os.path.getsize(tar_filename))
                 s3_client.upload_file(tar_filename,
-                                    self.s3_bucket_name,
-                                    tar_file,
-                                    Callback=partial(self._upload_progress_callback, tar_file),
-                                    ExtraArgs=S3_EXTRA_ARGS_DICT)
+                                      self.s3_bucket_name,
+                                      tar_file,
+                                      Callback=partial(self._upload_progress_callback, tar_file),
+                                      ExtraArgs=S3_EXTRA_ARGS_DICT)
 
             case TaskType.DECRYPT:
                 decryption_key = self.state_db.get_encryption_key()
@@ -119,4 +123,11 @@ class WorkerPool:
 
 
     def put_on_tasks_queue(self, tar_filename: str) -> None:
-        self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename))
+        with self.task_submission_limiting_semaphore:
+            self.task_futures.append(self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename)))
+
+    def wait_on_all_tasks(self) -> None:
+        for task_future in self.task_futures:
+            task_future.result()
+
+        self.task_futures.clear()

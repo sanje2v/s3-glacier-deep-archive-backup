@@ -4,8 +4,8 @@ from http import HTTPStatus
 from datetime import datetime
 
 import boto3
-from rich.table import Table
 from rich import print
+from rich.table import Table
 
 import settings
 from utils import *
@@ -22,7 +22,7 @@ def backup(src_dirs: list[str],
            encrypt: bool,
            autoclean: bool,
            test_run: bool):
-    db_filename = datetime.now().strftime(settings.STATE_DB_FILENAME_TEMPLATE)
+    db_filename = abspath(datetime.now().strftime(settings.STATE_DB_FILENAME_TEMPLATE))
     logging.info(f"Recording backup state in '{db_filename}'...")
     _backup(**locals())
 
@@ -31,11 +31,11 @@ def resume(db_filename: str):
     logging.info("Trying to resume from last failed backup point...")
     with StateDB(db_filename) as state_db:
         cmd_args = state_db.get_last_cmd_args()
-        del cmd_args['db_filename']
+        cmd_args['db_filename'] = abspath(db_filename)
 
     # CAUTION: Following needs to be called after 'with' context so that
     # state DB is NOT opened two times.
-    _backup(db_filename, **cmd_args)
+    _backup(**cmd_args)
 
 
 def show(collate: int, db_filename: str):
@@ -74,10 +74,10 @@ def decrypt(autoclean: bool,
             db_filename: str,
             tar_files_folder: str):
     with StateDB(db_filename) as state_db:
-        with WorkerPool(num_workers=settings.DEFAULT_NUM_UPLOAD_WORKERS,
-                        task_type=TaskType.DECRYPT,
-                        state_db=state_db,
-                        autoclean=autoclean) as decrypt_worker_pool:
+        with WorkerPool(settings.DEFAULT_NUM_UPLOAD_WORKERS,
+                        TaskType.DECRYPT,
+                        autoclean,
+                        state_db) as decrypt_worker_pool:
                 for encrypted_tar_filename in list_files_recursive_iter(tar_files_folder,
                                                                         file_extension=settings.ENCRYPTED_FILE_EXTENSION):
                     decrypt_worker_pool.put_on_tasks_queue(encrypted_tar_filename)
@@ -120,11 +120,11 @@ def _backup(db_filename: str,
     # CAUTION: Call 'locals()' immediately before any variable assignment so that only this function's arguments are captured
     with StateDB(db_filename, locals()) as state_db:
         # NOTE: This worker pool context will block (i.e. will not exit) until all tasks are done.
-        with WorkerPool(state_db=state_db,
+        with WorkerPool(num_upload_workers,
+                        TaskType.UPLOAD,
+                        autoclean,
+                        state_db,
                         s3_bucket_name=bucket,
-                        num_workers=num_upload_workers,
-                        task_type=TaskType.UPLOAD,
-                        autoclean=autoclean,
                         test_run=test_run) as upload_worker_pool:
             split_size = MB_to_bytes(split_size) if test_run else GB_to_bytes(split_size)   # CAUTION: For testing, we use MB splits for ease
 
@@ -139,11 +139,28 @@ def _backup(db_filename: str,
             else:
                 encrypt_key = None
 
+            # Check if there are some complete TAR files that haven't beed uploaded yet.
+            # If so, upload them first.
+            already_packaged_tar_files = state_db.get_already_packaged_tar_files()
+            for already_packaged_tar_file in already_packaged_tar_files:
+                already_packaged_tar_filename = os.path.join(os.path.dirname(output_filename_template), already_packaged_tar_file)
+                if os.path.isfile(already_packaged_tar_filename):
+                    # Upload it now using background thread pool
+                    logging.info(f"Found '{already_packaged_tar_file}' TAR file ready to upload. Putting on upload queue.")
+                    upload_worker_pool.put_on_tasks_queue(already_packaged_tar_filename)
+                else:
+                    # Mark as failed
+                    logging.error(f"The TAR file '{already_packaged_tar_file}' is marked '{UploadTaskStatus.PACKAGED}' but cannot be found! Ignoring.")
+                    remove_file_ignore_errors(already_packaged_tar_filename)
+                    state_db.record_changed_work_state(UploadTaskStatus.FAILED, tar_file=already_packaged_tar_file)
+            upload_worker_pool.wait_on_all_tasks()
+
             # If resuming backup/uploads, we skip files that were already processed
             already_uploaded_files = state_db.get_already_uploaded_files()
             output_filename_idx = len(state_db.get_already_uploaded_files(tar_files_instead=True))
 
-            with SplitTarFiles(output_filename_template,
+            with SplitTarFiles(state_db,
+                               output_filename_template,
                                output_filename_idx,
                                encrypt_key,
                                compression,

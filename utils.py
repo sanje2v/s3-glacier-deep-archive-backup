@@ -1,4 +1,5 @@
 import os
+import uuid
 import string
 import secrets
 import argparse
@@ -29,6 +30,9 @@ def abspath(path: str) -> str:
 def remove_file_ignore_errors(filename: str) -> None:
     with suppress(OSError):
         os.remove(filename)
+
+def generate_random_name() -> str:
+    return uuid.uuid4().hex
 
 def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[str]:
     for file_or_dir in iglob(os.path.join(folder, f'**{file_extension}'),

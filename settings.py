@@ -57,9 +57,10 @@ ENCRYPT_KEY_LENGTH = 32
 ENCRYPT_NONCE_LENGTH = 12
 ENCRYPTED_FILE_EXTENSION = '.chacha20'
 TARFILE_FORMAT = tarfile.PAX_FORMAT
-BUFFER_MEM_SIZE_BYTES = MB_to_bytes(500)     # Process this size block at a time
+BUFFER_MEM_SIZE_BYTES = MB_to_bytes(500)     # Process this size block at a time when creating a TAR file
 
 MAX_CONCURRENT_SINGLE_FILE_UPLOADS = 3
+NUM_WORKS_PRODUCE_AHEAD = 3
 MAX_RETRY_ATTEMPTS = 20
 RETRY_WAIT_TIME_RANGE_MINS = (30, 180)
 STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M%S_backup_statedb.sqlite3'

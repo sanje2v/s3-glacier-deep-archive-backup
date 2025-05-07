@@ -2,13 +2,12 @@ import os.path
 import logging
 import tarfile
 
-from consts import TAR_COMPRESSION_TYPES
 from utils import MB_to_bytes
 
 
 LOG_DIR = 'logs'
 LOG_FILENAME = os.path.join(LOG_DIR, 'main.log')
-MAX_LOG_SIZE_BYTES = MB_to_bytes(1)
+MAX_LOG_SIZE_BYTES = MB_to_bytes(10)
 LOG_NUM_BACKUPS = 8
 LOGGING_LEVEL = logging.INFO
 LOGGING_HIGHLIGHT_KEYWORDS = [
@@ -57,7 +56,7 @@ ENCRYPT_KEY_LENGTH = 32
 ENCRYPT_NONCE_LENGTH = 12
 ENCRYPTED_FILE_EXTENSION = '.chacha20'
 TARFILE_FORMAT = tarfile.PAX_FORMAT
-BUFFER_MEM_SIZE_BYTES = MB_to_bytes(500)     # Process this size block at a time when creating a TAR file
+BUFFER_MEM_SIZE_BYTES = MB_to_bytes(512)     # Process this size block at a time when creating a TAR file
 
 MAX_CONCURRENT_SINGLE_FILE_UPLOADS = 3
 NUM_WORKS_PRODUCE_AHEAD = 3

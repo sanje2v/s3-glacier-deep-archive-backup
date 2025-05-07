@@ -16,7 +16,7 @@ from .state_db import StateDB
 from .fileobjs import DecryptFileObj
 
 import settings
-from utils import remove_file_ignore_errors
+from utils import remove_file_ignore_errors, mins_to_secs
 
 
 class WorkerPool:
@@ -123,8 +123,7 @@ class WorkerPool:
 
 
     def put_on_tasks_queue(self, tar_filename: str) -> None:
-        with self.task_submission_limiting_semaphore:
-            self.task_futures.append(self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename)))
+        self.task_futures.append(self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename)))
 
     def wait_on_all_tasks(self) -> None:
         for task_future in self.task_futures:

@@ -1,4 +1,5 @@
 import os
+import gc
 import logging
 from http import HTTPStatus
 from datetime import datetime
@@ -142,6 +143,7 @@ def _backup(db_filename: str,
             # Check if there are some complete TAR files that haven't beed uploaded yet.
             # If so, upload them first.
             already_packaged_tar_files = state_db.get_already_packaged_tar_files()
+            num_missing_packaged_tar_files = 0
             for already_packaged_tar_file in already_packaged_tar_files:
                 already_packaged_tar_filename = os.path.join(os.path.dirname(output_filename_template), already_packaged_tar_file)
                 if os.path.isfile(already_packaged_tar_filename):
@@ -153,11 +155,12 @@ def _backup(db_filename: str,
                     logging.error(f"The TAR file '{already_packaged_tar_file}' is marked '{UploadTaskStatus.PACKAGED}' but cannot be found! Ignoring.")
                     remove_file_ignore_errors(already_packaged_tar_filename)
                     state_db.record_changed_work_state(UploadTaskStatus.FAILED, tar_file=already_packaged_tar_file)
+                    num_missing_packaged_tar_files += 1
             upload_worker_pool.wait_on_all_tasks()
 
             # If resuming backup/uploads, we skip files that were already processed
             already_uploaded_files = state_db.get_already_uploaded_files()
-            output_filename_idx = len(state_db.get_already_uploaded_files(tar_files_instead=True))
+            output_filename_idx = len(state_db.get_already_uploaded_files(tar_files_instead=True)) + num_missing_packaged_tar_files
 
             with SplitTarFiles(state_db,
                                output_filename_template,
@@ -182,6 +185,7 @@ def _backup(db_filename: str,
                         if split_tarfiles.tell() >= split_size:
                             split_tarfiles.create_new_tarfile_part()
                             logging.info(f"Starting a new TAR file '{split_tarfiles.get_tarfile_name()}' for backup...")
+                            gc.collect()
 
                         logging.info(f"Processing '{src_filename}'...")
                         state_db.record_changed_work_state(UploadTaskStatus.SCHEDULED,

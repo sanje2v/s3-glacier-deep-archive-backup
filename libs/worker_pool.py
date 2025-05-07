@@ -121,8 +121,11 @@ class WorkerPool:
             self.state_db.record_changed_work_state(UploadTaskStatus.UPLOADED, tar_file=tar_file)
         logging.info(f"{'Uploaded' if self.task_type == TaskType.UPLOAD else 'Decrypted'} '{tar_filename}'.")
 
+        self.task_submission_limiting_semaphore.release()
+
 
     def put_on_tasks_queue(self, tar_filename: str) -> None:
+        self.task_submission_limiting_semaphore.acquire(blocking=True)
         self.task_futures.append(self.thread_pool.submit(self._work_wrapper, deepcopy(tar_filename)))
 
     def wait_on_all_tasks(self) -> None:

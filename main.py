@@ -9,10 +9,6 @@ from consts import TAR_COMPRESSION_TYPES
 
 
 def main(command, **kwargs):
-    if command in ['backup', 'resume', 'sync', 'delete'] and not isAWSConfigAndCredentialsOK():
-        logging.error("Please check for proper S3 configuration and credentials in '~/.aws'!")
-        exit(1)     # Cannot continue without proper S3 credentials and configurations
-
     command_func = getattr(commands, command)
     command_func(**kwargs)
 
@@ -21,6 +17,9 @@ if __name__ == '__main__':
     # Configure logging
     os.makedirs(settings.LOG_DIR, exist_ok=True)
     logging.config.dictConfig(settings.LOGGING_CONFIG_DICT)
+
+    if not isAWSConfigAndCredentialsOK():
+        logging.warn("Please check for proper S3 configuration and credentials in '~/.aws'!")
 
     # Add command line arguments
     parser = argparse.ArgumentParser(prog=os.path.basename(__file__),

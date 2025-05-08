@@ -10,6 +10,7 @@ services:
     volumes:
       - s3-glacier-deep-archive-backup-testing-data:/bitnami/minio/data
     environment:
+      - TZ=${TZ}
       - MINIO_ROOT_USER=minio
       - MINIO_ROOT_PASSWORD=abcdefghijkl
       - MINIO_DEFAULT_BUCKETS=mybucket

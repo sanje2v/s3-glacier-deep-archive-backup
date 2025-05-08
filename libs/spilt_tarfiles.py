@@ -50,9 +50,7 @@ class SplitTarFiles:
         self.output_filename = os.path.join(output_dir, output_file)
         self.temp_filename = os.path.join(output_dir, generate_random_name())
         self.fileobj = EncryptSplitFileObj(self.temp_filename,
-                                           self.output_filename,
-                                           self.encrypt_key,
-                                           self.upload_callback)
+                                           self.encrypt_key)
         self.tarfile = tarfile.open(fileobj=self.fileobj,
                                     format=settings.TARFILE_FORMAT,
                                     mode=f'w:{self.compression if self.compression else ""}',
@@ -84,6 +82,7 @@ class SplitTarFiles:
                 os.rename(self.temp_filename, self.output_filename)
                 output_file = os.path.basename(self.output_filename)
                 self.state_db.record_changed_work_state(UploadTaskStatus.PACKAGED, tar_file=output_file)
+                self.upload_callback(self.output_filename)
             else:
                 remove_file_ignore_errors(self.temp_filename)
 

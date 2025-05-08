@@ -9,16 +9,11 @@ from utils import repeat_string_until_length, str_to_bytes
 
 class EncryptSplitFileObj:
     def __init__(self,
-                 temp_filename: str,
                  output_filename: str,
-                 encrypt_key: bytes | None,
-                 upload_callback: Callable[[str], None]):
-        self.output_filename = output_filename
-        self.upload_callback = upload_callback
-
+                 encrypt_key: bytes | None):
         nonce: str = repeat_string_until_length(os.path.basename(output_filename), settings.ENCRYPT_NONCE_LENGTH)
         self.chacha20 = ChaCha20.new(key=encrypt_key, nonce=str_to_bytes(nonce)) if encrypt_key else None
-        self.output_file = open(temp_filename, mode='wb')
+        self.output_file = open(output_filename, mode='wb')
 
     def __enter__(self):
         return self
@@ -44,14 +39,10 @@ class EncryptSplitFileObj:
 
         self.output_file.write(b)
 
-    def filename(self):
-        return self.output_filename
-
     def close(self):
         if self.output_file:
             self.output_file.close()
             self.output_file = None
-            self.upload_callback(self.output_filename)
 
 
 class DecryptFileObj:

@@ -9,14 +9,21 @@ from concurrent.futures import ThreadPoolExecutor, Future
 
 import boto3
 import boto3.session
-from rich.progress import Progress, Task
+from rich.progress import Progress,\
+                          Task,\
+                          TextColumn,\
+                          BarColumn,\
+                          DownloadColumn,\
+                          TransferSpeedColumn,\
+                          TimeRemainingColumn,\
+                          TimeElapsedColumn
 
 from .common import TaskType, UploadTaskStatus
 from .state_db import StateDB
 from .fileobjs import DecryptFileObj
 
 import settings
-from utils import remove_file_ignore_errors, mins_to_secs
+from utils import remove_file_ignore_errors, mins_to_secs, prettyFilesize
 
 
 class WorkerPool:
@@ -39,7 +46,12 @@ class WorkerPool:
         self.task_futures: list[Future] = []
         self.task_submission_limiting_semaphore = BoundedSemaphore(num_workers + settings.NUM_WORKS_PRODUCE_AHEAD)
         if task_type == TaskType.UPLOAD:
-            self.progresses = Progress(transient=True, refresh_per_second=1)
+            self.progresses = Progress(TextColumn("[progress.description]{task.description}"),
+                                       BarColumn(),
+                                       DownloadColumn(),
+                                       TransferSpeedColumn(),
+                                       TimeRemainingColumn(),
+                                       TimeElapsedColumn(), transient=False, refresh_per_second=1)
             self.progresses.start()
             self.progress_tasks_dict: dict[str, Task] = {}
 
@@ -49,11 +61,15 @@ class WorkerPool:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Wait for everything to be uploaded/downloaded before disposing thread pool unless it is Ctrl+c
-        self.thread_pool.shutdown(wait=(exc_type is not KeyboardInterrupt), cancel_futures=True)
+        self.thread_pool.shutdown(wait=(exc_type is not KeyboardInterrupt), cancel_futures=(exc_type is KeyboardInterrupt))
         del self.thread_pool
 
+        if self.task_type == TaskType.UPLOAD:
+            self.progresses.stop()
+
     def _upload_progress_callback(self, tar_file: str, bytes_processed: int):
-        self.progresses.update(self.progress_tasks_dict[tar_file], advance=bytes_processed)
+        progress_task = self.progress_tasks_dict[tar_file]
+        self.progresses.update(progress_task, advance=bytes_processed)
 
     def _work(self, tar_file: str, tar_filename: str) -> None:
         assert self.task_type in [TaskType.UPLOAD, TaskType.DECRYPT]

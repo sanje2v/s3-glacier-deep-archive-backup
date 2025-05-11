@@ -100,6 +100,19 @@ def checkFilesExistsInS3(bucket: str, tar_files: list[str]) -> list[bool]:
 
     return results
 
+def is_in_ignore_list(filename: str) -> bool:
+    dirs_split_list = os.path.dirname(filename).split(os.path.sep)
+    for ignore_dir in settings.IGNORE_DIRS:
+        if ignore_dir in dirs_split_list:
+            return True
+
+    file = os.path.basename(filename)
+    for ignore_file in settings.IGNORE_FILES:
+        if file in settings.IGNORE_FILES:
+            return True
+
+    return False
+
 
 class ValidateEncryptionKey(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None) -> None:

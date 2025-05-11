@@ -61,7 +61,8 @@ class WorkerPool:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Wait for everything to be uploaded/downloaded before disposing thread pool unless it is Ctrl+c
-        self.thread_pool.shutdown(wait=(exc_type is not KeyboardInterrupt), cancel_futures=(exc_type is KeyboardInterrupt))
+        self.thread_pool.shutdown(wait=(exc_type is not KeyboardInterrupt),
+                                  cancel_futures=(exc_type is KeyboardInterrupt))
         del self.thread_pool
 
         if self.task_type == TaskType.UPLOAD:
@@ -77,10 +78,10 @@ class WorkerPool:
         match self.task_type:
             case TaskType.UPLOAD:
                 session = boto3.Session()   # NOTE: Load S3 credentials and configuration from '~/.aws'
-                s3_client = session.client('s3',
-                                            config=boto3.session.Config(max_pool_connections=settings.MAX_CONCURRENT_SINGLE_FILE_UPLOADS,
-                                                                        retries={'max_attempts': settings.MAX_RETRY_ATTEMPTS,
-                                                                                'mode': 'standard'}))
+                config = boto3.session.Config(max_pool_connections=settings.MAX_CONCURRENT_SINGLE_FILE_UPLOADS,
+                                              retries={'max_attempts': settings.MAX_RETRY_ATTEMPTS,
+                                                       'mode': 'standard'})
+                s3_client = session.client('s3', config=config)
                 S3_EXTRA_ARGS_DICT = {
                     'ChecksumAlgorithm': 'sha256'
                 }

@@ -49,6 +49,36 @@ LOGGING_CONFIG_DICT = {
     }
 }
 
+IGNORE_DIRS = [
+    'lost+found',
+    'node_modules',
+    '.venv',
+    '__pycache__',
+    '.git',
+    '.DS_Store',
+    '@eaDir',
+    '.Spotlight-V100',
+    '.Trashes',
+    '.fseventsd',
+    '.DocumentRevisions-V100',
+    '.TemporaryItems',
+    '#recycle',
+    'System Volume Information',
+]
+assert not any([ignore_dir.endswith('/') for ignore_dir in IGNORE_DIRS]),\
+       "Directory names in 'IGNORE_DIRS' should not end with '/'!"
+assert not any(['*' in IGNORE_DIRS]),\
+         "Wildcard '*' not supported in 'IGNORE_DIRS'!"
+
+IGNORE_FILES = [
+    'desktop.ini',
+    'Thumbs.db',
+]
+assert not any([ignore_file.endswith('/') for ignore_file in IGNORE_FILES]),\
+       "File names in 'IGNORE_FILES' should not end with '/'!"
+assert not any(['*' in IGNORE_FILES]),\
+         "Wildcard '*' not supported in 'IGNORE_FILES'!"
+
 DEFAULT_NUM_UPLOAD_WORKERS = 5
 DEFAULT_SPLIT_SIZE_GIGABYTES = 100   # NOTE: This value is interpreted as Megabytes in '--test-run'
 

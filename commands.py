@@ -174,6 +174,11 @@ def _backup(db_filename: str,
                 # For each directory, enumerate files and add them to a tar file
                 for src_dir in src_dirs:
                     for src_filename in list_files_recursive_iter(src_dir):
+                        # Check if the file or its parent directory is in the ignore list
+                        if is_in_ignore_list(src_filename):
+                            logging.info(f"Skipping '{src_filename}' as it is in the ignore list from IGNORE_DIRS or IGNORE_FILES!")
+                            continue
+
                         # If the total bytes written is larger than split_size,
                         # queue it for upload and start a new tar file.
                         if src_filename in already_uploaded_files:

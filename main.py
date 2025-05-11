@@ -1,3 +1,4 @@
+import signal
 import argparse
 import logging
 import logging.config
@@ -19,7 +20,10 @@ if __name__ == '__main__':
     logging.config.dictConfig(settings.LOGGING_CONFIG_DICT)
 
     if not isAWSConfigAndCredentialsOK():
-        logging.warn("Please check for proper S3 configuration and credentials in '~/.aws'!")
+        logging.warning("Please check for proper S3 configuration and credentials in '~/.aws'!")
+
+    # Allow this programm to be interrupted with Ctrl+C and SIGTERM (default signal used by docker to stop a container)
+    signal.signal(signal.SIGTERM, signal.getsignal(signal.SIGINT))
 
     # Add command line arguments
     parser = argparse.ArgumentParser(prog=os.path.basename(__file__),

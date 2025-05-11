@@ -23,7 +23,7 @@ from .state_db import StateDB
 from .fileobjs import DecryptFileObj
 
 import settings
-from utils import remove_file_ignore_errors, mins_to_secs, prettyFilesize
+from utils import remove_file_ignore_errors, mins_to_secs
 
 
 class WorkerPool:

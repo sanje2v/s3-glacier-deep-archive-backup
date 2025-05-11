@@ -1,5 +1,4 @@
 import os.path
-from collections.abc import Callable
 
 from Cryptodome.Cipher import ChaCha20
 

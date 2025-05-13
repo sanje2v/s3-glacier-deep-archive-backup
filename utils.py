@@ -46,8 +46,8 @@ def generate_password(length: int) -> str:
     return ''.join(secrets.choice(characters) for i in range(length))
 
 def escape_sql_escape_chars(value: str) -> str:
-    # Escape single quotes and backslashes in SQL string
-    return value.replace("'", "''").replace('\\', '\\\\')
+    # Escape single quotes in SQL value string
+    return value.replace("'", "''")
 
 def MB_to_bytes(value: int) -> int:
     return (value * 1024 * 1024)

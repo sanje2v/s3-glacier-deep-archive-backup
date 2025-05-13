@@ -1,4 +1,4 @@
-boto3==1.37.33
+boto3==1.38.14
 pycryptodomex==3.22.0
 rich==14.0.0
 pathvalidate==3.2.3

@@ -4,8 +4,8 @@ import logging
 import logging.config
 
 import commands
-from utils import *
 import settings
+from utils import *
 from consts import TAR_COMPRESSION_TYPES
 
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     if not isAWSConfigAndCredentialsOK():
         logging.warning("Please check for proper S3 configuration and credentials in '~/.aws'!")
 
-    # Allow this programm to be interrupted with Ctrl+C and SIGTERM (default signal used by docker to stop a container)
+    # Allow this program to be interrupted with Ctrl+C and SIGTERM (default signal used by docker to stop a container)
     signal.signal(signal.SIGTERM, signal.getsignal(signal.SIGINT))
 
     # Add command line arguments

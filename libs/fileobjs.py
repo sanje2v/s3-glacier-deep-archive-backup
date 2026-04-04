@@ -13,6 +13,8 @@ class EncryptSplitFileObj:
         nonce: str = repeat_string_until_length(os.path.basename(output_filename), settings.ENCRYPT_NONCE_LENGTH)
         self.chacha20 = ChaCha20.new(key=encrypt_key, nonce=str_to_bytes(nonce)) if encrypt_key else None
         self.output_file = open(output_filename, mode='wb')
+        if self.output_file is None:
+            raise IOError(f"Couldn't open file '{output_filename}' for writing!")
 
     def __enter__(self):
         return self
@@ -21,6 +23,7 @@ class EncryptSplitFileObj:
         self.close()
 
     def tell(self):
+        assert self.output_file is not None
         return self.output_file.tell()
 
     def readable(self):
@@ -33,6 +36,7 @@ class EncryptSplitFileObj:
         return False
 
     def write(self, b, /):
+        assert self.output_file is not None
         if self.chacha20 is not None:
             b = self.chacha20.encrypt(b)
 

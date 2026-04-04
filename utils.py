@@ -1,4 +1,5 @@
 import os
+import math
 import uuid
 import string
 import secrets
@@ -27,6 +28,26 @@ def abspath(path: str) -> str:
     # This function properly expands '~' while expanding to absolute path
     return os.path.abspath(os.path.expanduser(path))
 
+def get_last_nth_dirname(filename: str, n: int) -> str:
+    assert n > 0, "n must be greater than 0!"
+    # Given, for example, "/root/dir1/dir2/file.txt" and n=2,
+    # return "/root/dir1"
+    for _ in range(n):
+        filename_ = os.path.dirname(filename)
+        if filename_ in [os.path.sep, '']:
+            break
+        else:
+            filename = filename_
+
+    return filename
+
+def logrithmic_scale_value(i: int, a: int, b: int) -> int:
+    assert i >= 0
+    max_i = 100
+    i = min(i, max_i)
+    # Normalize (0 to 1) and scale to [a, b]
+    return int(a + (b - a) * (math.log10(i + 1) / math.log10(max_i + 1)))
+
 def remove_file_ignore_errors(filename: str) -> None:
     with suppress(OSError):
         os.remove(filename)
@@ -38,7 +59,8 @@ def list_files_recursive_iter(folder: str, file_extension: str='') -> Generator[
     for file_or_dir in iglob(os.path.join(folder, f'**{file_extension}'),
                              recursive=True,
                              include_hidden=True):  # CAUTION: Don't forget to include hidden files
-        if os.path.isfile(file_or_dir) and not os.path.islink(file_or_dir): # CAUTION: Don't include symbolic links
+        if os.path.isfile(file_or_dir) and\
+            not os.path.islink(file_or_dir):        # CAUTION: Don't include symbolic links
             yield abspath(file_or_dir)
 
 def generate_password(length: int) -> str:
@@ -49,14 +71,17 @@ def escape_sql_escape_chars(value: str) -> str:
     # Escape single quotes in SQL value string
     return value.replace("'", "''")
 
-def MB_to_bytes(value: int) -> int:
-    return (value * 1024 * 1024)
+def KB_to_bytes(value: float) -> int:
+    return int(value * 1024)
 
-def GB_to_bytes(value: int) -> int:
+def MB_to_bytes(value: float) -> int:
+    return KB_to_bytes(value) * 1024
+
+def GB_to_bytes(value: float) -> int:
     return MB_to_bytes(value) * 1024
 
-def mins_to_secs(value: int) -> int:
-    return (value * 60)
+def mins_to_secs(value: float) -> int:
+    return int(value * 60)
 
 def repeat_string_until_length(value: str, length: int) -> str:
     a, b = divmod(length, len(value))
@@ -65,10 +90,10 @@ def repeat_string_until_length(value: str, length: int) -> str:
 def isAWSConfigAndCredentialsOK() -> bool:
     return len(boto3.Session().available_profiles) > 0
 
-def toLocalDateTimeFromUTCString(value: str) -> str:
+def toLocalDateTimeFromUTCString(value: str) -> datetime:
     return datetime.fromisoformat(value).replace(tzinfo=tz.UTC).astimezone()
 
-def prettyDateTimeString(value: str) -> str:
+def prettyDateTimeString(value: datetime) -> str:
     return datetime.strftime(value, "%Y-%m-%d %I:%M:%S %p %Z") # eg: 2025-02-01 3:05:00 PM AEST
 
 def maxStrEnumValue(enum_class_type) -> int:
@@ -76,13 +101,15 @@ def maxStrEnumValue(enum_class_type) -> int:
 
 def prettyFilesize(value, decimal_places=1) -> str:
     UNITS = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB']
+    unit = None
     for unit in UNITS:
         if value < 1024.0 or unit == UNITS[-1]:
             break
         value /= 1024.0
+    assert unit is not None
     return f"{value:.{decimal_places}f} {unit}"
 
-def checkFilesExistsInS3(bucket: str, tar_files: list[str]) -> list[bool]:
+def checkFilesExistsInS3(bucket: str, tar_files: set[str]) -> list[bool]:
     session = boto3.Session()
     s3_client = session.client('s3')
 
@@ -107,9 +134,8 @@ def is_in_ignore_list(filename: str) -> bool:
             return True
 
     file = os.path.basename(filename)
-    for ignore_file in settings.IGNORE_FILES:
-        if file in settings.IGNORE_FILES:
-            return True
+    if file in settings.IGNORE_FILES:
+        return True
 
     return False
 
@@ -145,6 +171,7 @@ class ValidateFilesExists(argparse.Action):
             values = [values]
 
         for filename in values:
+            assert isinstance(filename, str)
             if len(filename) > MAX_LINUX_PATH_LENGTH:
                 raise argparse.ArgumentError(self, f"Folder path is too long! Max supported is {MAX_LINUX_PATH_LENGTH}.")
 
@@ -164,6 +191,7 @@ class ValidateFoldersExist(argparse.Action):
             values = [values]
 
         for folder in values:
+            assert isinstance(folder, str)
             if len(folder) > MAX_LINUX_PATH_LENGTH:
                 raise argparse.ArgumentError(self, f"Folder path is too long! Max supported is {MAX_LINUX_PATH_LENGTH}.")
 
@@ -183,6 +211,7 @@ class ValidateFilename(argparse.Action):
             values = [values]
 
         for filename in values:
+            assert isinstance(filename, str)
             if not is_valid_filepath(filename, max_len=MAX_LINUX_PATH_LENGTH, platform='auto'):
                 raise argparse.ArgumentError(self, f"Filename path '{filename}' is not valid! "\
                                                     "It might be too long or contains invalid characters.")
@@ -194,7 +223,8 @@ class ValidateFilename(argparse.Action):
 
 class ValidateGreaterOrEqualTo0(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None) -> None:
+        assert isinstance(values, int)
         if values < 0:
-            raise argparse.ArgumentError(self, f"Value must be greater than or equal to 0!")
+            raise argparse.ArgumentError(self, "Value must be greater than or equal to 0!")
 
         setattr(namespace, self.dest, values)

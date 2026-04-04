@@ -5,6 +5,58 @@ import tarfile
 from utils import MB_to_bytes
 
 
+IGNORE_DIRS = {
+    'lost+found',
+    'node_modules',
+    '.venv',
+    '__pycache__',
+    '.git',
+    '.DS_Store',
+    '@eaDir',
+    '.Spotlight-V100',
+    '.Trashes',
+    '.fseventsd',
+    '.DocumentRevisions-V100',
+    '.TemporaryItems',
+    'tmp',
+    '.tmp',
+    '_tmp',
+    'temp',
+    'Temp',
+    'TEMP',
+    'debug',
+    'Debug',
+    '#recycle',
+    'System Volume Information',
+}
+assert not any([ignore_dir.endswith('/') for ignore_dir in IGNORE_DIRS]),\
+       "Directory names in 'IGNORE_DIRS' should not end with '/'!"
+assert not any(['*' in IGNORE_DIRS]),\
+         "Wildcard '*' not supported in 'IGNORE_DIRS'!"
+IGNORE_FILES = {
+    'desktop.ini',
+    'Thumbs.db',
+}
+assert not any([ignore_file.endswith('/') for ignore_file in IGNORE_FILES]),\
+       "File names in 'IGNORE_FILES' should not end with '/'!"
+assert not any(['*' in IGNORE_FILES]),\
+         "Wildcard '*' not supported in 'IGNORE_FILES'!"
+
+ENCRYPT_KEY_LENGTH = 32
+ENCRYPT_NONCE_LENGTH = 12
+ENCRYPTED_FILE_EXTENSION = '.chacha20'
+TARFILE_FORMAT = tarfile.PAX_FORMAT
+BUFFER_MEM_SIZE_BYTES = MB_to_bytes(512)                # Process this size block at a time when creating a TAR file
+
+DEFAULT_NUM_UPLOAD_WORKERS = 2
+DEFAULT_SPLIT_SIZE_GIGABYTES = 100                      # NOTE: This value is interpreted as Megabytes in '--test-run'
+MAX_CONCURRENT_SINGLE_FILE_UPLOADS = 2
+TOTAL_MAX_BANDWIDTH_BYTES_PER_SEC = MB_to_bytes(3.5)    # NOTE: Set to 0 for no limit.
+NUM_WORKS_PRODUCE_AHEAD = 2
+MAX_RETRY_ATTEMPTS = 20
+RETRY_WAIT_TIME_RANGE_MINS = (5, 60)
+STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M%S_backup_statedb.sqlite3'
+
 LOG_DIR = 'logs'
 LOG_FILENAME = os.path.join(LOG_DIR, 'main.log')
 MAX_LOG_SIZE_BYTES = MB_to_bytes(10)
@@ -17,7 +69,8 @@ LOGGING_HIGHLIGHT_KEYWORDS = [
     'Uploading',
     'Uploaded',
     'Failed',
-    'Done']
+    'Done',
+]
 LOGGING_CONFIG_DICT = {
     'version': 1,
     'formatters': {
@@ -48,48 +101,3 @@ LOGGING_CONFIG_DICT = {
         'handlers': ['file_log_handler', 'rich_console_handler']
     }
 }
-
-IGNORE_DIRS = [
-    'lost+found',
-    'node_modules',
-    '.venv',
-    '__pycache__',
-    '.git',
-    '.DS_Store',
-    '@eaDir',
-    '.Spotlight-V100',
-    '.Trashes',
-    '.fseventsd',
-    '.DocumentRevisions-V100',
-    '.TemporaryItems',
-    '#recycle',
-    'System Volume Information',
-]
-assert not any([ignore_dir.endswith('/') for ignore_dir in IGNORE_DIRS]),\
-       "Directory names in 'IGNORE_DIRS' should not end with '/'!"
-assert not any(['*' in IGNORE_DIRS]),\
-         "Wildcard '*' not supported in 'IGNORE_DIRS'!"
-
-IGNORE_FILES = [
-    'desktop.ini',
-    'Thumbs.db',
-]
-assert not any([ignore_file.endswith('/') for ignore_file in IGNORE_FILES]),\
-       "File names in 'IGNORE_FILES' should not end with '/'!"
-assert not any(['*' in IGNORE_FILES]),\
-         "Wildcard '*' not supported in 'IGNORE_FILES'!"
-
-DEFAULT_NUM_UPLOAD_WORKERS = 5
-DEFAULT_SPLIT_SIZE_GIGABYTES = 100   # NOTE: This value is interpreted as Megabytes in '--test-run'
-
-ENCRYPT_KEY_LENGTH = 32
-ENCRYPT_NONCE_LENGTH = 12
-ENCRYPTED_FILE_EXTENSION = '.chacha20'
-TARFILE_FORMAT = tarfile.PAX_FORMAT
-BUFFER_MEM_SIZE_BYTES = MB_to_bytes(512)     # Process this size block at a time when creating a TAR file
-
-MAX_CONCURRENT_SINGLE_FILE_UPLOADS = 3
-NUM_WORKS_PRODUCE_AHEAD = 3
-MAX_RETRY_ATTEMPTS = 20
-RETRY_WAIT_TIME_RANGE_MINS = (30, 180)
-STATE_DB_FILENAME_TEMPLATE = '%Y%m%d-%H%M%S_backup_statedb.sqlite3'

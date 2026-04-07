@@ -19,6 +19,7 @@ IGNORE_DIRS = {
     '.DocumentRevisions-V100',
     '.TemporaryItems',
     'tmp',
+    '@tmp',
     '.tmp',
     '_tmp',
     'temp',
